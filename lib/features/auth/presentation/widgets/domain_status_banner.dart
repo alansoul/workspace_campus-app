@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../data/models/auth_models.dart';
 
-/// Displays verified campus badge, Gmail individual pill, or unregistered warning.
+/// Displays verified campus/Gmail identity and safe account status (admin/existing/new).
 class DomainStatusBanner extends StatelessWidget {
   final DomainResolution? resolution;
   final bool isResolving;
@@ -17,7 +17,7 @@ class DomainStatusBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     if (isResolving) {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
           color: AppColors.primaryContainer,
           borderRadius: BorderRadius.circular(14),
@@ -26,18 +26,18 @@ class DomainStatusBanner extends StatelessWidget {
         child: const Row(
           children: [
             SizedBox(
-              width: 14,
-              height: 14,
+              width: 13,
+              height: 13,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 color: AppColors.primary,
               ),
             ),
-            SizedBox(width: 10),
+            SizedBox(width: 9),
             Text(
-              'Verifying institution domain...',
+              'Checking domain & account status...',
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: AppColors.primary,
               ),
@@ -54,29 +54,34 @@ class DomainStatusBanner extends StatelessWidget {
       return _BadgeBox(
         background: const Color(0xFFE8F0FE),
         borderColor: const Color(0xFFD2E3FC),
-        icon: Icons.verified_user_rounded,
+        icon: res.isUniversityAdmin
+            ? Icons.admin_panel_settings_rounded
+            : Icons.verified_user_rounded,
         iconColor: AppColors.primary,
         title: res.universityName!,
-        badgeText: 'Campus Verified',
-        badgeColor: AppColors.primary,
+        subtitle: _buildAccountStatusText(res),
+        badgeText: res.isUniversityAdmin ? 'Admin Account' : 'Campus Verified',
+        badgeColor:
+            res.isUniversityAdmin ? AppColors.accentIndigo : AppColors.primary,
       );
     }
 
     if (res.allowed && res.isGmail) {
-      return const _BadgeBox(
-        background: Color(0xFFF8FAFC),
+      return _BadgeBox(
+        background: const Color(0xFFF8FAFC),
         borderColor: AppColors.border,
         icon: Icons.alternate_email_rounded,
         iconColor: AppColors.textSecondary,
         title: 'Personal Google Account',
+        subtitle: _buildAccountStatusText(res),
         badgeText: 'Individual',
-        badgeColor: Color(0xFF475569),
+        badgeColor: const Color(0xFF475569),
       );
     }
 
     if (!res.allowed && (res.errorMessage?.isNotEmpty ?? false)) {
       return Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(11),
         decoration: BoxDecoration(
           color: const Color(0xFFFFFBEB),
           borderRadius: BorderRadius.circular(14),
@@ -87,7 +92,7 @@ class DomainStatusBanner extends StatelessWidget {
           children: [
             const Icon(
               Icons.warning_amber_rounded,
-              size: 18,
+              size: 17,
               color: AppColors.warning,
             ),
             const SizedBox(width: 8),
@@ -98,7 +103,7 @@ class DomainStatusBanner extends StatelessWidget {
                   const Text(
                     'Domain not registered yet',
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF92400E),
                     ),
@@ -121,6 +126,19 @@ class DomainStatusBanner extends StatelessWidget {
 
     return const SizedBox.shrink();
   }
+
+  static String? _buildAccountStatusText(DomainResolution res) {
+    if (res.accountExists == null) return null;
+    if (res.isUniversityAdmin) {
+      return 'University Administrator verified • Ready to sign in';
+    }
+    if (res.accountExists == true) {
+      return res.hasPassword == true
+          ? 'Existing account found • Sign in with Password or OTP'
+          : 'Account found • Verify via OTP to finish password setup';
+    }
+    return 'New email • Register to verify and activate account';
+  }
 }
 
 class _BadgeBox extends StatelessWidget {
@@ -129,6 +147,7 @@ class _BadgeBox extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String title;
+  final String? subtitle;
   final String badgeText;
   final Color badgeColor;
 
@@ -140,12 +159,13 @@ class _BadgeBox extends StatelessWidget {
     required this.title,
     required this.badgeText,
     required this.badgeColor,
+    this.subtitle,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(14),
@@ -156,17 +176,35 @@ class _BadgeBox extends StatelessWidget {
           Icon(icon, size: 17, color: iconColor),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 1),
+                  Text(
+                    subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
+          const SizedBox(width: 6),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
@@ -176,7 +214,7 @@ class _BadgeBox extends StatelessWidget {
             child: Text(
               badgeText,
               style: const TextStyle(
-                fontSize: 10.5,
+                fontSize: 10,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),

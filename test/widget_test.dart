@@ -18,11 +18,20 @@ class FakeAuthRepository implements AuthRepository {
       throw UnimplementedError();
 
   @override
+  Future<UserModel> loginWithGoogle() => throw UnimplementedError();
+
+  @override
   Future<void> logout() async {}
 
   @override
   Future<DomainResolution> resolveDomain(String email) async =>
-      const DomainResolution(allowed: true, isRegistered: true, isGmail: true);
+      const DomainResolution(
+        allowed: true,
+        isRegistered: true,
+        isGmail: true,
+        accountExists: true,
+        hasPassword: true,
+      );
 
   @override
   Future<String?> requestOtp({
@@ -73,7 +82,7 @@ void main() {
     GoogleFonts.config.allowRuntimeFetching = false;
   });
 
-  testWidgets('App smoke test renders LoginScreen when unauthenticated',
+  testWidgets('App smoke test renders minimal LoginScreen when unauthenticated',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -86,6 +95,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Northstar Workspace'), findsOneWidget);
-    expect(find.text('Sign In'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsOneWidget);
   });
 }

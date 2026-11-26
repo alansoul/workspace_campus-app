@@ -37,6 +37,8 @@ dependencies:
 
   # Networking & Authentication
   dio: ^5.7.0
+  crypto: ^3.0.6
+  url_launcher: ^6.3.1
 
   # State Management
   flutter_riverpod: ^2.6.1
