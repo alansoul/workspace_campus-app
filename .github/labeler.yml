@@ -1,0 +1,74 @@
+'domain: auth-identity':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/features/auth/**'
+          - 'lib/core/network/auth_interceptor.dart'
+          - 'lib/core/storage/**'
+
+'domain: dashboard':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/features/dashboard/**'
+          - 'lib/app/**'
+
+'domain: academics':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/features/academics/**'
+
+'domain: chat':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/features/chat/**'
+          - 'lib/core/realtime/**'
+
+'domain: copilot':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/features/copilot/**'
+
+'domain: freelance':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/features/freelance/**'
+
+'domain: admin':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/features/admin/**'
+
+'domain: settings':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'lib/features/settings/**'
+
+'domain: platform-android':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'android/**'
+
+'domain: platform-windows':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'windows/**'
+
+'domain: platform-ios':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'ios/**'
+
+'domain: infra':
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - 'pubspec.yaml'
+          - 'pubspec.lock'
+          - 'analysis_options.yaml'
+          - 'lib/core/**'
+
+'domain: docs':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'README.md'
+          - 'docs/**'
+          - '**/*.md'

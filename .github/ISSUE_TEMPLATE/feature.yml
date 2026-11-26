@@ -1,0 +1,30 @@
+name: 💡 Feature Request
+description: Propose a new feature or UI/UX improvement for campus_mobile
+title: '[FEAT]: '
+labels: ['enhancement']
+body:
+  - type: dropdown
+    id: target
+    attributes:
+      label: Target Platforms
+      multiple: true
+      options:
+        - 'Android (.apk)'
+        - 'Windows Desktop (.exe)'
+        - 'iOS'
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution or UX
+    validations:
+      required: true

@@ -1,0 +1,52 @@
+name: 🐛 Bug Report
+description: Report a bug, crash, or layout issue in campus_mobile (Android / Windows / iOS)
+title: '[BUG]: '
+labels: ['bug', 'triage']
+body:
+  - type: markdown
+    attributes:
+      value: 'Please fill out the details below to help diagnose issues in `campus_mobile`.'
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Which Platform?
+      options:
+        - 'Android (.apk)'
+        - 'Windows Desktop (.exe)'
+        - 'iOS'
+        - 'Web'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: feature
+    attributes:
+      label: Which Feature Module?
+      options:
+        - 'Auth & Session'
+        - 'Dashboard & Navigation'
+        - 'Academics (Timetable / Attendance / Notes)'
+        - 'Chat & LiveKit Calls'
+        - 'AI Copilot'
+        - 'Freelance Marketplace'
+        - 'Admin Console'
+        - 'Settings'
+        - 'Build / Native Runner'
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Exact steps to trigger the issue.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Flutter / Device Logs
+      description: Paste `flutter run` console output or stack trace here.
+      render: shell
