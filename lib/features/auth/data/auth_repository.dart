@@ -4,19 +4,22 @@ import '../../../core/storage/secure_storage_service.dart';
 import 'models/auth_models.dart';
 import 'models/user_model.dart';
 import 'services/auth_api_service.dart';
+import 'services/google_oauth_service.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(
     ref.watch(authApiServiceProvider),
     ref.watch(secureStorageProvider),
+    ref.watch(googleOAuthServiceProvider),
   );
 });
 
 class AuthRepository {
   final AuthApiService _api;
   final SecureStorageService _storage;
+  final GoogleOAuthService _googleOAuth;
 
-  AuthRepository(this._api, this._storage);
+  AuthRepository(this._api, this._storage, this._googleOAuth);
 
   static const Set<String> _blockedPersonalDomains = {
     'yahoo.com',
@@ -38,16 +41,6 @@ class AuthRepository {
     }
 
     final domain = parts[1];
-    if (domain == 'gmail.com') {
-      return const DomainResolution(
-        allowed: true,
-        isRegistered: true,
-        isGmail: true,
-        isUniversity: false,
-        domain: 'gmail.com',
-      );
-    }
-
     if (_blockedPersonalDomains.contains(domain)) {
       return DomainResolution(
         allowed: false,
@@ -60,20 +53,33 @@ class AuthRepository {
       );
     }
 
-    final raw = await _api.resolveDomain(cleanEmail);
-    final parsed = DomainResolution.fromJson(raw);
-    if (!parsed.allowed) {
-      return DomainResolution(
-        allowed: false,
-        isRegistered: false,
-        isGmail: false,
-        isUniversity: true,
-        domain: domain,
-        errorMessage:
-            'This university domain is not registered by an administrator.',
-      );
+    try {
+      final raw = await _api.resolveDomain(cleanEmail);
+      final parsed = DomainResolution.fromJson(raw);
+      if (!parsed.allowed) {
+        return DomainResolution(
+          allowed: false,
+          isRegistered: false,
+          isGmail: false,
+          isUniversity: true,
+          domain: domain,
+          errorMessage:
+              'This university domain is not registered by an administrator.',
+        );
+      }
+      return parsed;
+    } catch (_) {
+      if (domain == 'gmail.com') {
+        return const DomainResolution(
+          allowed: true,
+          isRegistered: true,
+          isGmail: true,
+          isUniversity: false,
+          domain: 'gmail.com',
+        );
+      }
+      rethrow;
     }
-    return parsed;
   }
 
   Future<UserModel> login({
@@ -82,6 +88,21 @@ class AuthRepository {
   }) async {
     final data = await _api.login(email: email, password: password);
     return _persistSessionFromPayload(data);
+  }
+
+  Future<UserModel> loginWithGoogle() async {
+    final accessToken = await _googleOAuth.authenticateWithGoogle();
+    await _storage.saveTokens(accessToken: accessToken);
+    final user = await getProfile();
+    if (user == null) {
+      await _storage.clearAll();
+      throw Exception('Failed to load Google account profile.');
+    }
+    await _storage.saveUserMetadata(
+      userId: user.id,
+      universityId: user.universityId,
+    );
+    return user;
   }
 
   Future<String?> requestOtp({

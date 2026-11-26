@@ -10,19 +10,22 @@ import 'package:campus_mobile/features/auth/presentation/widgets/university_onbo
 import 'widget_test.dart';
 
 class _InteractiveFakeAuthRepository extends FakeAuthRepository {
-  OtpPurpose? lastPurpose;
-  String? lastEmail;
-  bool requirePasswordSetupOnVerify = true;
-
   @override
-  Future<String?> requestOtp({
-    required String email,
-    required OtpPurpose purpose,
-    String? turnstileToken,
-  }) async {
-    lastEmail = email;
-    lastPurpose = purpose;
-    return 'Verification code sent to $email';
+  Future<DomainResolution> resolveDomain(String email) async {
+    if (email == 'admin@iiitnr.edu.in') {
+      return const DomainResolution(
+        allowed: true,
+        isRegistered: true,
+        isUniversity: true,
+        domain: 'iiitnr.edu.in',
+        universityName: 'IIIT Naya Raipur',
+        accountExists: true,
+        hasPassword: true,
+        isUniversityAdmin: true,
+        accountRole: 'ADMIN',
+      );
+    }
+    return super.resolveDomain(email);
   }
 
   @override
@@ -32,7 +35,7 @@ class _InteractiveFakeAuthRepository extends FakeAuthRepository {
     String? fullName,
   }) async {
     return OtpVerificationResult(
-      requiresPasswordSetup: requirePasswordSetupOnVerify,
+      requiresPasswordSetup: true,
       message: 'Verified',
       user: UserModel(
         id: 'u1',
@@ -73,7 +76,8 @@ void main() {
     );
   });
 
-  testWidgets('Switches across Login, Register, OTP, Forgot Password, and Org Sheet',
+  testWidgets(
+      'Multi-page flow verifies admin account, switches modes, recovery, and opens Create Org',
       (WidgetTester tester) async {
     final fakeRepo = _InteractiveFakeAuthRepository();
 
@@ -87,41 +91,52 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Default Login -> Password mode shows Password field and Forgot password link
+    // Page 1: minimal Login & Google OAuth visible
+    expect(find.text('Continue'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsOneWidget);
+
+    // Enter university admin email and continue to Page 2 (Admin Sign In)
+    await tester.enterText(find.byType(TextField).first, 'admin@iiitnr.edu.in');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Admin Account'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Continue'));
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    // Page 2: shows dedicated Admin Sign In, Password/OTP toggle, Forgot password
+    expect(find.text('Admin Sign In'), findsOneWidget);
     expect(find.text('Sign In'), findsOneWidget);
     expect(find.text('Forgot password?'), findsOneWidget);
 
-    // Switch to OTP Code mode
-    await tester.tap(find.text('OTP Code'));
-    await tester.pumpAndSettle();
-    expect(find.text('Send OTP Code'), findsOneWidget);
-
-    // Switch to Register mode -> shows Full Name field + CTA
-    await tester.tap(find.text('Register'));
-    await tester.pumpAndSettle();
-    expect(find.text('Full Name'), findsOneWidget);
-    expect(find.text('Verify Email & Continue'), findsOneWidget);
-
-    // Switch back to Login -> Forgot password flow
-    await tester.ensureVisible(find.text('Login'));
-    await tester.tap(find.text('Login'));
-    await tester.pumpAndSettle();
+    // Navigate to Forgot Password page
     await tester.ensureVisible(find.text('Forgot password?'));
     await tester.tap(find.text('Forgot password?'));
     await tester.pumpAndSettle();
+    expect(find.text('Reset Password'), findsOneWidget);
     expect(find.text('Send Verification Code'), findsOneWidget);
 
-    // Return to Login and open bottom Create Org sheet
+    // Go back to Page 2 -> Back to Page 1 -> switch to Register
     await tester.ensureVisible(find.text('Back to Sign In'));
     await tester.tap(find.text('Back to Sign In'));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('Back'));
+    await tester.tap(find.text('Back'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Register'));
+    await tester.pumpAndSettle();
+    expect(find.text('Full Name'), findsOneWidget);
+
+    // Open bottom Create Org sheet
     await tester.ensureVisible(find.text('Create Org'));
     await tester.tap(find.text('Create Org'));
     await tester.pumpAndSettle();
 
     expect(find.byType(UniversityOnboardingSheet), findsOneWidget);
     expect(find.text('Create University Organisation'), findsOneWidget);
-    expect(find.text('Continue to Admin Setup'), findsOneWidget);
   });
 }

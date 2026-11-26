@@ -11,6 +11,7 @@ class ApiEndpoints {
   static const String login = '/auth/login';
   static const String me = '/auth/me';
   static const String resolveDomain = '/auth/resolve-domain';
+  static const String otpChallenge = '/auth/otp/challenge';
   static const String requestOtp = '/auth/otp/request';
   static const String verifyOtp = '/auth/otp/verify';
   static const String setPassword = '/auth/password/set';

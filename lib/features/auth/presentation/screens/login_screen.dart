@@ -8,6 +8,7 @@ import '../widgets/auth_form_fields.dart';
 import '../widgets/domain_status_banner.dart';
 import '../widgets/fluid_auth_backdrop.dart';
 import '../widgets/forgot_password_flow.dart';
+import '../widgets/google_oauth_button.dart';
 import '../widgets/otp_code_boxes.dart';
 import '../widgets/password_strength_checklist.dart';
 import '../widgets/segmented_pill_switch.dart';
@@ -46,51 +47,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _onEmailChanged(String value) {
     _domainDebounce?.cancel();
-    _domainDebounce = Timer(const Duration(milliseconds: 320), () {
+    final trimmed = value.trim();
+    if (!trimmed.contains('@') || !trimmed.split('@').last.contains('.')) {
+      ref.read(authFlowControllerProvider.notifier).clearDomainResolution();
+      return;
+    }
+    _domainDebounce = Timer(const Duration(milliseconds: 300), () {
       if (mounted) {
-        ref.read(authFlowControllerProvider.notifier).resolveDomain(value);
+        ref.read(authFlowControllerProvider.notifier).resolveDomain(trimmed);
       }
     });
   }
 
-  Future<void> _submitCredentials() async {
+  Future<void> _submitEmailEntry() async {
+    _domainDebounce?.cancel();
+    await ref.read(authFlowControllerProvider.notifier).continueFromEmail(
+          email: _emailController.text.trim().toLowerCase(),
+          fullName: _nameController.text.trim(),
+        );
+    if (mounted) {
+      setState(() => _otpCode = '');
+    }
+  }
+
+  Future<void> _submitAuthMethod() async {
     final flow = ref.read(authFlowControllerProvider);
     final notifier = ref.read(authFlowControllerProvider.notifier);
-
     final email = _emailController.text.trim().toLowerCase();
-    final fullName = _nameController.text.trim();
-    final password = _passwordController.text;
-
-    if (email.isEmpty || !email.contains('@')) {
-      notifier.setValidationError('Please enter a valid email address.');
-      return;
-    }
-
-    final domainRes = flow.domainResolution;
-    if (domainRes != null && !domainRes.allowed) {
-      notifier.setValidationError(
-        domainRes.errorMessage ??
-            'Only @gmail.com or registered university domains are allowed.',
-      );
-      return;
-    }
-
-    if (flow.mode == AuthMode.signUp) {
-      if (fullName.length < 2) {
-        notifier.setValidationError('Please enter your full name.');
-        return;
-      }
-      await notifier.requestOtp(email: email, purpose: OtpPurpose.register);
-      setState(() => _otpCode = '');
-      return;
-    }
 
     if (flow.method == AuthMethod.otp) {
       await notifier.requestOtp(email: email, purpose: OtpPurpose.login);
-      setState(() => _otpCode = '');
+      if (mounted) setState(() => _otpCode = '');
       return;
     }
 
+    final password = _passwordController.text;
     if (password.isEmpty) {
       notifier.setValidationError('Please enter your password.');
       return;
@@ -149,14 +140,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             FrostedGlassCard(
-              padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
+              padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
               child: AnimatedSize(
                 duration: const Duration(milliseconds: 240),
                 curve: Curves.easeOutCubic,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildBrandHeader(flow),
+                    _buildHeader(flow),
                     const SizedBox(height: 18),
                     if (flow.errorMessage != null) ...[
                       AuthFeedbackBanner(
@@ -173,16 +164,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(height: 12),
                     ],
                     AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 240),
+                      duration: const Duration(milliseconds: 230),
                       switchInCurve: Curves.easeOutCubic,
                       switchOutCurve: Curves.easeInCubic,
-                      child: _buildCurrentStep(flow),
+                      child: _buildPageContent(flow),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             _UniversityOnboardingCard(
               onTap: () => UniversityOnboardingSheet.show(context),
             ),
@@ -201,112 +192,176 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildBrandHeader(AuthFlowState flow) {
+  Widget _buildHeader(AuthFlowState flow) {
+    final showBack = flow.step != AuthStep.credentials;
+    String title = 'Northstar Workspace';
     String subtitle;
+
     switch (flow.step) {
-      case AuthStep.verifyOtp:
-        subtitle =
-            'Enter the 6-digit code sent to ${_emailController.text.trim()}';
-        break;
-      case AuthStep.setPassword:
-        subtitle = 'Email verified! Create a password to secure your workspace.';
-        break;
-      case AuthStep.forgotPassword:
-        subtitle = 'Reset your password safely with 6-digit OTP verification.';
-        break;
       case AuthStep.credentials:
         subtitle = flow.mode == AuthMode.signIn
-            ? 'Welcome back! Sign in with password or one-time code.'
-            : 'Verify your university or @gmail.com email to get started.';
+            ? 'Sign in with your university or Google account'
+            : 'Create your campus workspace account';
+        break;
+      case AuthStep.authMethod:
+        title = flow.domainResolution?.isUniversityAdmin == true
+            ? 'Admin Sign In'
+            : 'Verify Identity';
+        subtitle = 'Choose how you want to authenticate';
+        break;
+      case AuthStep.verifyOtp:
+        title = 'Enter Verification Code';
+        subtitle =
+            'Sent a 6-digit code to ${_emailController.text.trim()}';
+        break;
+      case AuthStep.setPassword:
+        title = 'Create Password';
+        subtitle = 'Email verified! Secure your account to continue.';
+        break;
+      case AuthStep.forgotPassword:
+        title = 'Reset Password';
+        subtitle = 'Verify your email with a 6-digit code';
+        break;
     }
 
     return Column(
       children: [
-        Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF38BDF8), AppColors.primary, AppColors.accentIndigo],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.25),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+        if (showBack)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: InkWell(
+              onTap: flow.isLoading
+                  ? null
+                  : () {
+                      final backStep = flow.step == AuthStep.setPassword
+                          ? AuthStep.verifyOtp
+                          : AuthStep.credentials;
+                      ref
+                          .read(authFlowControllerProvider.notifier)
+                          .goToStep(backStep);
+                    },
+              borderRadius: BorderRadius.circular(999),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.arrow_back_rounded,
+                      size: 16,
+                      color: AppColors.textSecondary,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Back',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ],
+            ),
+          )
+        else
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(15),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF38BDF8),
+                  AppColors.primary,
+                  AppColors.accentIndigo,
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.24),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.school_rounded,
+              size: 25,
+              color: Colors.white,
+            ),
           ),
-          child: const Icon(
-            Icons.school_rounded,
-            size: 28,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 14),
-        const Text(
-          'Northstar Workspace',
+        SizedBox(height: showBack ? 6 : 12),
+        Text(
+          title,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 22,
+          style: const TextStyle(
+            fontSize: 21,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.4,
             color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 4),
         Text(
           subtitle,
           textAlign: TextAlign.center,
           style: const TextStyle(
-            fontSize: 13,
+            fontSize: 12.5,
             color: AppColors.textSecondary,
-            height: 1.4,
+            height: 1.35,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildCurrentStep(AuthFlowState flow) {
+  Widget _buildPageContent(AuthFlowState flow) {
     switch (flow.step) {
+      case AuthStep.authMethod:
+        return KeyedSubtree(
+          key: const ValueKey('page_auth_method'),
+          child: _buildAuthMethodPage(flow),
+        );
       case AuthStep.verifyOtp:
         return KeyedSubtree(
-          key: const ValueKey('step_verify_otp'),
-          child: _buildVerifyOtpStep(flow),
+          key: const ValueKey('page_verify_otp'),
+          child: _buildVerifyOtpPage(flow),
         );
       case AuthStep.setPassword:
         return KeyedSubtree(
-          key: const ValueKey('step_set_password'),
-          child: _buildSetPasswordStep(flow),
+          key: const ValueKey('page_set_password'),
+          child: _buildSetPasswordPage(flow),
         );
       case AuthStep.forgotPassword:
         return KeyedSubtree(
-          key: const ValueKey('step_forgot_password'),
+          key: const ValueKey('page_forgot_password'),
           child: ForgotPasswordFlow(
             initialEmail: _emailController.text.trim(),
             onCancel: () => ref
                 .read(authFlowControllerProvider.notifier)
-                .goToStep(AuthStep.credentials),
+                .goToStep(AuthStep.authMethod),
           ),
         );
       case AuthStep.credentials:
         return KeyedSubtree(
-          key: const ValueKey('step_credentials'),
-          child: _buildCredentialsStep(flow),
+          key: const ValueKey('page_credentials'),
+          child: _buildEntryPage(flow),
         );
     }
   }
 
-  Widget _buildCredentialsStep(AuthFlowState flow) {
+  /// PAGE 1: Clean minimal email entry + Login/Register toggle + Google OAuth.
+  Widget _buildEntryPage(AuthFlowState flow) {
     final notifier = ref.read(authFlowControllerProvider.notifier);
     final isSignUp = flow.mode == AuthMode.signUp;
-    final isOtpMethod = isSignUp || flow.method == AuthMethod.otp;
     final hasInvalidDomain =
         flow.domainResolution != null && !flow.domainResolution!.allowed;
+    final showBanner = _emailController.text.trim().contains('@') &&
+        (flow.isResolvingDomain || flow.domainResolution != null);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -317,56 +372,154 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           rightValue: AuthMode.signUp,
           leftLabel: 'Login',
           rightLabel: 'Register',
-          onChanged: notifier.switchMode,
+          onChanged: (mode) {
+            notifier.switchMode(mode);
+            _onEmailChanged(_emailController.text);
+          },
         ),
-        const SizedBox(height: 14),
-        if (!isSignUp) ...[
-          SegmentedPillSwitch<AuthMethod>(
-            value: flow.method,
-            leftValue: AuthMethod.password,
-            rightValue: AuthMethod.otp,
-            leftLabel: 'Password',
-            rightLabel: 'OTP Code',
-            leftIcon: Icons.lock_outline_rounded,
-            rightIcon: Icons.mark_email_read_outlined,
-            height: 40,
-            activeColor: AppColors.accentIndigo,
-            onChanged: notifier.switchMethod,
-          ),
-          const SizedBox(height: 14),
-        ],
+        const SizedBox(height: 16),
         if (isSignUp) ...[
           FluidTextField(
             controller: _nameController,
             label: 'Full Name',
             hint: 'e.g. Rohan Singh',
             prefixIcon: Icons.person_outline_rounded,
-            enabled: !flow.isLoading,
+            enabled: !flow.isLoading && !flow.isGoogleLoading,
           ),
           const SizedBox(height: 12),
         ],
         FluidTextField(
           controller: _emailController,
-          label: 'University or @gmail.com Email',
+          label: 'Email address',
           hint: 'student@univ.edu.in or you@gmail.com',
           prefixIcon: Icons.mail_outline_rounded,
           keyboardType: TextInputType.emailAddress,
-          textInputAction:
-              isOtpMethod ? TextInputAction.done : TextInputAction.next,
-          enabled: !flow.isLoading,
+          textInputAction: TextInputAction.done,
+          enabled: !flow.isLoading && !flow.isGoogleLoading,
           hasWarningBorder: hasInvalidDomain,
           onChanged: _onEmailChanged,
-          onSubmitted: isOtpMethod ? (_) => _submitCredentials() : null,
+          onSubmitted: (_) => _submitEmailEntry(),
         ),
-        if (flow.isResolvingDomain || flow.domainResolution != null) ...[
+        if (showBanner) ...[
           const SizedBox(height: 10),
           DomainStatusBanner(
             resolution: flow.domainResolution,
             isResolving: flow.isResolvingDomain,
           ),
         ],
-        if (!isOtpMethod) ...[
-          const SizedBox(height: 12),
+        const SizedBox(height: 18),
+        FluidPrimaryButton(
+          label: 'Continue',
+          trailingIcon: Icons.arrow_forward_rounded,
+          isLoading: flow.isLoading,
+          useDarkPill: isSignUp,
+          onPressed: (hasInvalidDomain || flow.isGoogleLoading)
+              ? null
+              : _submitEmailEntry,
+        ),
+        const SizedBox(height: 14),
+        const Row(
+          children: [
+            Expanded(child: Divider(color: AppColors.border)),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                'OR',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ),
+            Expanded(child: Divider(color: AppColors.border)),
+          ],
+        ),
+        const SizedBox(height: 14),
+        GoogleOAuthButton(
+          isLoading: flow.isGoogleLoading,
+          onPressed: flow.isLoading ? null : notifier.signInWithGoogle,
+        ),
+      ],
+    );
+  }
+
+  /// PAGE 2: Dedicated Password / OTP authentication step with verified identity badge.
+  Widget _buildAuthMethodPage(AuthFlowState flow) {
+    final notifier = ref.read(authFlowControllerProvider.notifier);
+    final email = _emailController.text.trim().toLowerCase();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Identity chip showing exact email & verified account/university role
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.inputFill,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE0E7FF)),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.alternate_email_rounded,
+                size: 16,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: flow.isLoading
+                    ? null
+                    : () => notifier.goToStep(AuthStep.credentials),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Change',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (flow.domainResolution != null) ...[
+          const SizedBox(height: 10),
+          DomainStatusBanner(
+            resolution: flow.domainResolution,
+            isResolving: false,
+          ),
+        ],
+        const SizedBox(height: 14),
+        SegmentedPillSwitch<AuthMethod>(
+          value: flow.method,
+          leftValue: AuthMethod.password,
+          rightValue: AuthMethod.otp,
+          leftLabel: 'Password',
+          rightLabel: 'OTP Code',
+          leftIcon: Icons.lock_outline_rounded,
+          rightIcon: Icons.mark_email_read_outlined,
+          height: 42,
+          activeColor: AppColors.accentIndigo,
+          onChanged: notifier.switchMethod,
+        ),
+        const SizedBox(height: 14),
+        if (flow.method == AuthMethod.password) ...[
           FluidTextField(
             controller: _passwordController,
             label: 'Password',
@@ -375,7 +528,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             obscureText: _obscurePassword,
             textInputAction: TextInputAction.done,
             enabled: !flow.isLoading,
-            onSubmitted: (_) => _submitCredentials(),
+            onSubmitted: (_) => _submitAuthMethod(),
             suffixIcon: IconButton(
               icon: Icon(
                 _obscurePassword
@@ -407,39 +560,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
           ),
-        ] else
-          const SizedBox(height: 18),
-        FluidPrimaryButton(
-          label: isSignUp
-              ? 'Verify Email & Continue'
-              : (isOtpMethod ? 'Send OTP Code' : 'Sign In'),
-          trailingIcon:
-              isOtpMethod ? Icons.arrow_forward_rounded : Icons.login_rounded,
-          isLoading: flow.isLoading,
-          useDarkPill: isSignUp,
-          onPressed: hasInvalidDomain ? null : _submitCredentials,
-        ),
-        if (flow.requiresTurnstileFallback && !isSignUp) ...[
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: () => notifier.switchMethod(AuthMethod.password),
-            icon: const Icon(Icons.password_rounded, size: 17),
-            label: const Text('Use Password Login instead'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.textPrimary,
-              side: const BorderSide(color: AppColors.border),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(999),
+        ] else ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFBFDBFE)),
+            ),
+            child: Text(
+              'We will send a 6-digit login verification code to $email.',
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: AppColors.textPrimary,
+                height: 1.35,
               ),
-              padding: const EdgeInsets.symmetric(vertical: 12),
             ),
           ),
+          const SizedBox(height: 18),
         ],
+        FluidPrimaryButton(
+          label: flow.method == AuthMethod.otp ? 'Send OTP Code' : 'Sign In',
+          trailingIcon: flow.method == AuthMethod.otp
+              ? Icons.arrow_forward_rounded
+              : Icons.login_rounded,
+          isLoading: flow.isLoading,
+          onPressed: _submitAuthMethod,
+        ),
       ],
     );
   }
 
-  Widget _buildVerifyOtpStep(AuthFlowState flow) {
+  /// PAGE 3: Spacious 6-digit OTP verification screen.
+  Widget _buildVerifyOtpPage(AuthFlowState flow) {
     final notifier = ref.read(authFlowControllerProvider.notifier);
     final email = _emailController.text.trim().toLowerCase();
     final purpose =
@@ -465,30 +618,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             );
           },
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
         FluidPrimaryButton(
-          label: 'Confirm Verification Code',
+          label: 'Confirm Code',
           trailingIcon: Icons.verified_rounded,
           isLoading: flow.isLoading,
           onPressed: _otpCode.length == 6 ? _submitOtpVerification : null,
-        ),
-        const SizedBox(height: 8),
-        TextButton.icon(
-          onPressed: flow.isLoading
-              ? null
-              : () => notifier.goToStep(AuthStep.credentials),
-          icon: const Icon(Icons.arrow_back_rounded, size: 16),
-          label: const Text('Change email address'),
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.textSecondary,
-          ),
         ),
       ],
     );
   }
 
-  Widget _buildSetPasswordStep(AuthFlowState flow) {
-    final notifier = ref.read(authFlowControllerProvider.notifier);
+  /// PAGE 4: Password creation after first-time OTP signup verification.
+  Widget _buildSetPasswordPage(AuthFlowState flow) {
     final pass = _newPasswordController.text;
     final confirm = _confirmPasswordController.text;
 
@@ -552,17 +694,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           onPressed:
               (pass.length >= 8 && pass == confirm) ? _submitSetPassword : null,
         ),
-        const SizedBox(height: 8),
-        TextButton.icon(
-          onPressed: flow.isLoading
-              ? null
-              : () => notifier.goToStep(AuthStep.verifyOtp),
-          icon: const Icon(Icons.arrow_back_rounded, size: 16),
-          label: const Text('Back to OTP'),
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.textSecondary,
-          ),
-        ),
       ],
     );
   }
@@ -577,7 +708,7 @@ class _UniversityOnboardingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FrostedGlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       borderRadius: 22,
       tintColor: Colors.white.withValues(alpha: 0.72),
       child: InkWell(
@@ -586,17 +717,17 @@ class _UniversityOnboardingCard extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                 color: AppColors.primaryContainer,
-                borderRadius: BorderRadius.circular(13),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFBFDBFE)),
               ),
               child: const Icon(
                 Icons.account_balance_rounded,
                 color: AppColors.primary,
-                size: 21,
+                size: 19,
               ),
             ),
             const SizedBox(width: 12),
@@ -607,14 +738,14 @@ class _UniversityOnboardingCard extends StatelessWidget {
                   Text(
                     'Onboarding a university?',
                     style: TextStyle(
-                      fontSize: 13.5,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
                   ),
                   SizedBox(height: 2),
                   Text(
-                    'Create an organisation workspace for your campus',
+                    'Create an organisation for your campus',
                     style: TextStyle(
                       fontSize: 11.5,
                       color: AppColors.textSecondary,

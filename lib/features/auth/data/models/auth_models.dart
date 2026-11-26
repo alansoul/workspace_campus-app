@@ -10,7 +10,7 @@ enum OtpPurpose {
   const OtpPurpose(this.apiValue);
 }
 
-/// University domain check result from `/auth/resolve-domain` or local provider guard.
+/// University domain & safe account lookup result from `/auth/resolve-domain`.
 class DomainResolution {
   final bool allowed;
   final bool isRegistered;
@@ -20,6 +20,10 @@ class DomainResolution {
   final String? universityId;
   final String? universityName;
   final String? universityShortCode;
+  final bool? accountExists;
+  final bool? hasPassword;
+  final bool isUniversityAdmin;
+  final String? accountRole;
   final String? errorMessage;
 
   const DomainResolution({
@@ -31,6 +35,10 @@ class DomainResolution {
     this.universityId,
     this.universityName,
     this.universityShortCode,
+    this.accountExists,
+    this.hasPassword,
+    this.isUniversityAdmin = false,
+    this.accountRole,
     this.errorMessage,
   });
 
@@ -46,6 +54,10 @@ class DomainResolution {
       universityName:
           (json['universityName'] as String?) ?? (uni?['name'] as String?),
       universityShortCode: uni?['shortCode'] as String?,
+      accountExists: json['accountExists'] as bool?,
+      hasPassword: json['hasPassword'] as bool?,
+      isUniversityAdmin: json['isUniversityAdmin'] as bool? ?? false,
+      accountRole: json['accountRole'] as String?,
       errorMessage: json['errorMessage'] as String?,
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_endpoints.dart';
@@ -44,6 +46,21 @@ class AuthApiService {
     required OtpPurpose purpose,
     String? turnstileToken,
   }) async {
+    String? challengeToken;
+    String? challengeSolution;
+
+    if (turnstileToken == null || turnstileToken.isEmpty) {
+      final challengeResp =
+          await _dio.get<Map<String, dynamic>>(ApiEndpoints.otpChallenge);
+      final challengeData = challengeResp.data ?? <String, dynamic>{};
+      challengeToken = challengeData['challengeToken'] as String?;
+      final nonce = challengeData['nonce'] as String?;
+      final difficulty = (challengeData['difficulty'] as int?) ?? 3;
+      if (challengeToken != null && nonce != null) {
+        challengeSolution = _solveChallenge(nonce, difficulty);
+      }
+    }
+
     final response = await _dio.post<Map<String, dynamic>>(
       ApiEndpoints.requestOtp,
       data: {
@@ -51,9 +68,25 @@ class AuthApiService {
         'purpose': purpose.apiValue,
         if (turnstileToken != null && turnstileToken.isNotEmpty)
           'turnstileToken': turnstileToken,
+        if (challengeToken != null) 'nativeChallengeToken': challengeToken,
+        if (challengeSolution != null)
+          'nativeChallengeSolution': challengeSolution,
       },
     );
     return response.data ?? <String, dynamic>{};
+  }
+
+  static String _solveChallenge(String nonce, int difficulty) {
+    final prefix = '0' * difficulty.clamp(1, 5);
+    var counter = 0;
+    while (true) {
+      final digest =
+          sha256.convert(utf8.encode('$nonce:$counter')).toString();
+      if (digest.startsWith(prefix)) {
+        return counter.toString();
+      }
+      counter += 1;
+    }
   }
 
   Future<Map<String, dynamic>> verifyOtp({
