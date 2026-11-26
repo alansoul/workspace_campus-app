@@ -1,0 +1,26 @@
+# 👑 Flutter Mobile & Desktop Repository Owner
+* @alansoul
+
+# ⚙️ Infrastructure & Build Config
+.github/ @alansoul
+pubspec.yaml @alansoul
+pubspec.lock @alansoul
+analysis_options.yaml @alansoul
+android/ @alansoul
+windows/ @alansoul
+ios/ @alansoul
+
+# 🧠 App Shell & Core Services
+lib/app/ @alansoul
+lib/core/ @alansoul
+lib/shared/ @alansoul
+
+# 🚀 Feature Modules
+lib/features/auth/ @alansoul
+lib/features/dashboard/ @alansoul
+lib/features/academics/ @alansoul
+lib/features/chat/ @alansoul
+lib/features/copilot/ @alansoul
+lib/features/freelance/ @alansoul
+lib/features/admin/ @alansoul
+lib/features/settings/ @alansoul

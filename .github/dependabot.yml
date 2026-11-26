@@ -1,0 +1,48 @@
+version: 2
+updates:
+  # Flutter / Dart Pub Packages (weekly)
+  - package-ecosystem: 'pub'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Kolkata'
+    commit-message:
+      prefix: 'chore(deps)'
+      include: 'scope'
+    labels:
+      - 'type: dependencies'
+      - 'domain: infra'
+    open-pull-requests-limit: 10
+    groups:
+      riverpod:
+        patterns:
+          - 'flutter_riverpod'
+          - 'riverpod*'
+      networking:
+        patterns:
+          - 'dio'
+          - 'socket_io_client'
+          - 'livekit_client'
+
+  # Android Gradle Dependencies (monthly)
+  - package-ecosystem: 'gradle'
+    directory: '/android'
+    schedule:
+      interval: 'monthly'
+    commit-message:
+      prefix: 'chore(deps)'
+      include: 'scope'
+    labels:
+      - 'type: dependencies'
+      - 'domain: platform-android'
+
+  # GitHub Actions (monthly)
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'monthly'
+    labels:
+      - 'type: dependencies'
+      - 'domain: infra'
