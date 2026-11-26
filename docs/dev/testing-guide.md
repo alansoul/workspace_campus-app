@@ -36,6 +36,7 @@ flutter build windows --release
 
 ## GitHub Actions Workflows
 
-- **CI Pipeline (`.github/workflows/ci.yml`):** Runs `validate` (format check, `flutter analyze`, `flutter test --coverage`) on every push/PR to `main`/`develop`, and builds both the Android `.apk` and Windows `.exe` artifacts on pushes to `main`/`develop` or manual `workflow_dispatch`.
+- **CI Pipeline (`.github/workflows/ci.yml`):** Runs lightweight `validate` checks (format check, `flutter analyze`, `flutter test --coverage`) on every push/PR to `main`/`develop` without burning build minutes on binaries.
+- **Manual / Tag Build Pipeline (`.github/workflows/build-flutter.yml`):** Trigger manually via **Actions → Build Flutter APK & Windows EXE → Run workflow** (or push a `v*` tag) to build `Northstar-Android-APK` and `Northstar-Windows-EXE` (`Northstar-Windows.zip`).
 - **Release Pipeline (`.github/workflows/release.yml`):** Pushing a version tag (`v1.0.0`) builds both platforms and publishes `campus_mobile-android.apk` + `campus_mobile-windows-x64.zip` to a GitHub Release.
 - **PR Automation:** `.github/workflows/label-pr.yml` applies domain/platform labels via `labeler.yml`, and `.github/workflows/stale.yml` manages inactive issues/PRs.
