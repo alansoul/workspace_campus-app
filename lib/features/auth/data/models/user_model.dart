@@ -7,6 +7,8 @@ class UserModel {
   final String? universityId;
   final String? universityName;
   final String? branch;
+  final String? institutionalEmail;
+  final bool isEmailVerified;
   final String accountType;
 
   UserModel({
@@ -18,20 +20,30 @@ class UserModel {
     this.universityId,
     this.universityName,
     this.branch,
+    this.institutionalEmail,
+    this.isEmailVerified = false,
     required this.accountType,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final email = (json['email'] as String?) ?? '';
+    final fallbackUsername =
+        email.contains('@') ? email.split('@').first : 'campus_user';
     return UserModel(
-      id: json['id'] as String,
-      email: json['email'] as String,
-      username: json['username'] as String,
-      fullName: json['fullName'] as String,
-      role: json['role'] as String,
+      id: (json['id'] as String?) ?? '',
+      email: email,
+      username: (json['username'] as String?) ?? fallbackUsername,
+      fullName: (json['fullName'] as String?) ??
+          (json['name'] as String?) ??
+          fallbackUsername,
+      role: (json['role'] as String?) ?? 'STUDENT',
       universityId: json['universityId'] as String?,
       universityName: json['universityName'] as String?,
       branch: json['branch'] as String?,
-      accountType: json['accountType'] as String? ?? 'INDIVIDUAL',
+      institutionalEmail: json['institutionalEmail'] as String?,
+      isEmailVerified: json['isEmailVerified'] as bool? ?? false,
+      accountType: json['accountType'] as String? ??
+          (json['universityId'] != null ? 'INSTITUTIONAL' : 'INDIVIDUAL'),
     );
   }
 }

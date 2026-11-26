@@ -2,10 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:campus_mobile/features/auth/data/auth_repository.dart';
+import 'package:campus_mobile/features/auth/data/models/auth_models.dart';
 import 'package:campus_mobile/features/auth/data/models/user_model.dart';
 import 'package:campus_mobile/main.dart';
 
-class _FakeAuthRepository implements AuthRepository {
+class FakeAuthRepository implements AuthRepository {
   @override
   Future<UserModel?> getProfile() async => null;
 
@@ -20,7 +21,51 @@ class _FakeAuthRepository implements AuthRepository {
   Future<void> logout() async {}
 
   @override
-  Future<Map<String, dynamic>> resolveDomain(String email) async => {};
+  Future<DomainResolution> resolveDomain(String email) async =>
+      const DomainResolution(allowed: true, isRegistered: true, isGmail: true);
+
+  @override
+  Future<String?> requestOtp({
+    required String email,
+    required OtpPurpose purpose,
+    String? turnstileToken,
+  }) async =>
+      'Code sent';
+
+  @override
+  Future<OtpVerificationResult> verifyOtp({
+    required String email,
+    required String otp,
+    String? fullName,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<UserModel> setPassword({
+    required String email,
+    required String password,
+    String? fullName,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<UserModel> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<String?> requestUniversityOtp({
+    required String email,
+    required String domain,
+  }) async =>
+      'Domain OTP sent';
+
+  @override
+  Future<UserModel> claimUniversity(UniversityClaimRequest request) =>
+      throw UnimplementedError();
 }
 
 void main() {
@@ -33,7 +78,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+          authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
         ],
         child: const CampusWorkspaceApp(),
       ),

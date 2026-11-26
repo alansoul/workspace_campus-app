@@ -1,0 +1,89 @@
+name: Build Flutter APK & Windows EXE
+
+on:
+  # Click "Run workflow" manually anytime on GitHub Actions
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'Backend API URL (--dart-define=API_URL)'
+        required: false
+        default: 'https://workspace-campus-api.onrender.com/api'
+        type: string
+  # Also auto-builds when you push a version tag like v1.0.0
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================
+  # JOB 1: Build Android .APK (Fast Linux VM)
+  # ==========================================
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: 🛒 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java 17 (Android Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: 🛠️ Setup Flutter Workspace
+        uses: ./.github/actions/setup-flutter
+
+      - name: 📱 Build Release APK
+        run: |
+          flutter build apk --release \
+            --dart-define=API_URL=${{ inputs.api_url || 'https://workspace-campus-api.onrender.com/api' }}
+
+      - name: 📤 Upload Android APK for Download
+        uses: actions/upload-artifact@v4
+        with:
+          name: Northstar-Android-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 7
+
+  # ==========================================
+  # JOB 2: Build Windows .EXE (Fast Windows VM)
+  # ==========================================
+  build-windows:
+    name: Build Windows EXE
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: 🛒 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Setup Flutter Workspace
+        uses: ./.github/actions/setup-flutter
+
+      - name: 🖥️ Build Windows Release EXE
+        shell: pwsh
+        run: |
+          flutter build windows --release `
+            --dart-define=API_URL=${{ inputs.api_url || 'https://workspace-campus-api.onrender.com/api' }}
+
+      - name: 🗜️ Zip Windows Release Folder (keeps .exe + required .dll files together)
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "Northstar-Windows.zip" -Force
+
+      - name: 📤 Upload Windows App for Download
+        uses: actions/upload-artifact@v4
+        with:
+          name: Northstar-Windows-EXE
+          path: Northstar-Windows.zip
+          retention-days: 7

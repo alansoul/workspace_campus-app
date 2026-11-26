@@ -8,8 +8,18 @@ class ApiEndpoints {
   static const String login = '/auth/login';
   static const String me = '/auth/me';
   static const String resolveDomain = '/auth/resolve-domain';
+  static const String requestOtp = '/auth/otp/request';
+  static const String verifyOtp = '/auth/otp/verify';
+  static const String setPassword = '/auth/password/set';
+  static const String resetPassword = '/auth/password/reset';
+  static const String verifyAndRegister = '/auth/verify-and-register';
+  static const String googleOAuth = '/auth/google';
   static const String logout = '/auth/logout';
   static const String refresh = '/auth/refresh';
+
+  // University Organisation Onboarding
+  static const String requestUniversityOtp = '/universities/request-otp';
+  static const String claimUniversity = '/universities/claim';
 
   // Academics
   static const String timetable = '/university/timetable';
