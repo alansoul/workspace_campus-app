@@ -1,8 +1,11 @@
 class ApiEndpoints {
   ApiEndpoints._();
 
-  static const String baseUrl = 'https://workspace-campus-api.onrender.com/api';
-  static const String socketUrl = 'https://workspace-campus-api.onrender.com';
+  static const String baseUrl = String.fromEnvironment(
+    'API_URL',
+    defaultValue: 'https://workspace-campus-api.onrender.com/api',
+  );
+  static String get socketUrl => baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
 
   // IAM & Auth
   static const String login = '/auth/login';
