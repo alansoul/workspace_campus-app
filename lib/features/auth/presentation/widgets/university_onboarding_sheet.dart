@@ -108,7 +108,6 @@ class _UniversityOnboardingSheetState
 
   Future<void> _requestDomainVerificationOtp() async {
     final first = _firstNameController.text.trim();
-    final last = _lastNameController.text.trim();
     final email = _adminEmailController.text.trim().toLowerCase();
     final password = _passwordController.text;
     final domain =
