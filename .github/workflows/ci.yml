@@ -1,10 +1,11 @@
-name: Flutter CI
+name: Flutter CI Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -12,24 +13,83 @@ concurrency:
 
 jobs:
   validate:
-    name: Analyze & Test (workspace_campus-app)
+    name: Validate Flutter App (campus_mobile)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
-      - name: Checkout repository
+      - name: 🛒 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
+      - name: 🛠️ Setup Flutter Workspace
+        uses: ./.github/actions/setup-flutter
 
-      - name: Install dependencies
-        run: flutter pub get
+      - name: 🧹 Check Dart Formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+        continue-on-error: true
 
-      - name: Run static analyzer
+      - name: 🔍 Run Static Analyzer
         run: flutter analyze --no-fatal-infos
+        continue-on-error: false
 
-      - name: Run unit & widget tests
-        run: flutter test
+      - name: 🧪 Run Unit & Widget Tests
+        run: flutter test --coverage
+        continue-on-error: false
+
+  build-android:
+    name: Build Android APK
+    needs: validate
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: 🛒 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: 🛠️ Setup Flutter Workspace
+        uses: ./.github/actions/setup-flutter
+
+      - name: 📱 Build Release APK
+        run: flutter build apk --release
+
+      - name: 📤 Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: campus-mobile-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
+
+  build-windows:
+    name: Build Windows Desktop EXE
+    needs: validate
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: 🛒 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Setup Flutter Workspace
+        uses: ./.github/actions/setup-flutter
+
+      - name: 🖥️ Build Windows Release EXE
+        run: flutter build windows --release
+
+      - name: 📤 Upload Windows Release Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: campus-mobile-windows-exe
+          path: build/windows/x64/runner/Release/
+          retention-days: 14

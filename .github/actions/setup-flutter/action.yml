@@ -1,0 +1,22 @@
+name: 'Setup Flutter Workspace'
+description: 'Sets up Flutter (stable channel), caches pub dependencies, and runs flutter pub get'
+
+inputs:
+  architecture:
+    description: 'Target CPU architecture for Flutter SDK (x64 or arm64)'
+    required: false
+    default: 'x64'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: ⚙️ Setup Flutter SDK
+      uses: subosito/flutter-action@v2
+      with:
+        channel: stable
+        architecture: ${{ inputs.architecture }}
+        cache: true
+
+    - name: 📦 Install Pub Dependencies
+      shell: bash
+      run: flutter pub get
