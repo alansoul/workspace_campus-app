@@ -24,6 +24,7 @@ class DomainResolution {
   final bool? hasPassword;
   final bool isUniversityAdmin;
   final String? accountRole;
+  final bool isNetworkError;
   final String? errorMessage;
 
   const DomainResolution({
@@ -39,6 +40,7 @@ class DomainResolution {
     this.hasPassword,
     this.isUniversityAdmin = false,
     this.accountRole,
+    this.isNetworkError = false,
     this.errorMessage,
   });
 

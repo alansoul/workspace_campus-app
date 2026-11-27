@@ -188,12 +188,17 @@ class AuthFlowController extends StateNotifier<AuthFlowState> {
         isResolvingDomain: false,
       );
       return result;
-    } catch (_) {
+    } catch (e) {
       if (_lastResolvedEmail != trimmed) return state.domainResolution;
-      const err = DomainResolution(
+      final err = DomainResolution(
         allowed: false,
         isRegistered: false,
-        errorMessage: 'Unable to verify email domain right now.',
+        isNetworkError: true,
+        errorMessage: AuthApiService.extractErrorMessage(
+          e,
+          fallback:
+              'Unable to verify email domain right now. Tap Continue to retry.',
+        ),
       );
       state = state.copyWith(
         domainResolution: err,
