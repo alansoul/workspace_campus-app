@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,6 +10,7 @@ import 'package:campus_mobile/features/auth/data/models/user_model.dart';
 import 'package:campus_mobile/features/auth/data/services/google_oauth_service.dart';
 import 'package:campus_mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:campus_mobile/features/auth/presentation/widgets/fluid_auth_backdrop.dart';
+import 'package:campus_mobile/features/auth/presentation/widgets/otp_code_boxes.dart';
 import 'package:campus_mobile/features/auth/presentation/widgets/university_onboarding_sheet.dart';
 import 'widget_test.dart';
 
@@ -298,6 +300,58 @@ void main() {
 
     expect(find.text('Verify Institutional Domain'), findsOneWidget);
     expect(find.text('Verify & Create Organisation'), findsOneWidget);
+  });
+
+  testWidgets(
+      'OtpCodeBoxes exposes OS oneTimeCode autofill hints and auto-fills from clipboard',
+      (WidgetTester tester) async {
+    String? clipboardText = '482910 is your Northstar Workspace verification code';
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.getData') {
+        return <String, dynamic>{'text': clipboardText};
+      }
+      if (call.method == 'Clipboard.setData') {
+        final args = call.arguments as Map<dynamic, dynamic>?;
+        clipboardText = args?['text'] as String?;
+        return null;
+      }
+      return null;
+    });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    var currentOtp = '';
+    var completedCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OtpCodeBoxes(
+            value: currentOtp,
+            onChanged: (val) => currentOtp = val,
+            onCompleted: () => completedCount += 1,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(AutofillGroup), findsOneWidget);
+    final fields = tester.widgetList<TextField>(find.byType(TextField)).toList();
+    expect(fields.length, 6);
+    for (final field in fields) {
+      expect(field.autofillHints, contains(AutofillHints.oneTimeCode));
+    }
+
+    // Advance past mount clipboard polling delay (400ms)
+    await tester.pump(const Duration(milliseconds: 450));
+    await tester.pumpAndSettle();
+
+    expect(currentOtp, '482910');
+    expect(completedCount, 1);
+    expect(clipboardText, isEmpty);
   });
 }
 
