@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/constants/app_colors.dart';
 
-/// Custom 6-digit fluid OTP verification boxes supporting paste and auto-advance.
+/// Custom 6-digit fluid OTP verification boxes supporting paste, auto-advance,
+/// OS-level SMS/email autofill (Android & iOS), and clipboard polling fallback.
 class OtpCodeBoxes extends StatefulWidget {
   final String value;
   final ValueChanged<String> onChanged;
@@ -22,7 +23,8 @@ class OtpCodeBoxes extends StatefulWidget {
   State<OtpCodeBoxes> createState() => _OtpCodeBoxesState();
 }
 
-class _OtpCodeBoxesState extends State<OtpCodeBoxes> {
+class _OtpCodeBoxesState extends State<OtpCodeBoxes>
+    with WidgetsBindingObserver {
   static const int _length = 6;
   late final List<TextEditingController> _controllers;
   late final List<FocusNode> _focusNodes;
@@ -30,9 +32,64 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controllers = List.generate(_length, (_) => TextEditingController());
     _focusNodes = List.generate(_length, (_) => FocusNode());
     _syncFromExternalValue(widget.value);
+
+    // Clipboard polling: check on mount (delayed) and when first box is focused
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) _checkClipboardForOtp();
+    });
+    _focusNodes[0].addListener(() {
+      if (_focusNodes[0].hasFocus) _checkClipboardForOtp();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // User returned from mail/SMS app — check clipboard for copied OTP
+      _checkClipboardForOtp();
+    }
+  }
+
+  /// Extracts a 6-digit OTP when the clipboard holds a pure 6-digit code
+  /// or a recognizable Northstar verification code snippet.
+  static String? _extractOtpFromText(String raw) {
+    final trimmed = raw.trim();
+    if (RegExp(r'^\d{6}$').hasMatch(trimmed)) {
+      return trimmed;
+    }
+    if (RegExp(r'verification code|northstar|\botp\b', caseSensitive: false)
+        .hasMatch(trimmed)) {
+      final match = RegExp(r'\b(\d{6})\b').firstMatch(trimmed);
+      return match?.group(1);
+    }
+    return null;
+  }
+
+  /// Polls the clipboard for a 6-digit OTP string and auto-fills if found.
+  /// Clears the clipboard after use to prevent repeated fills.
+  Future<void> _checkClipboardForOtp() async {
+    if (!mounted || !widget.enabled) return;
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final extracted = _extractOtpFromText(data?.text ?? '');
+      if (extracted != null && extracted != _combinedCode()) {
+        _syncFromExternalValue(extracted);
+        widget.onChanged(extracted);
+        if (extracted.length == _length) {
+          _focusNodes.last.unfocus();
+          widget.onCompleted?.call();
+        }
+        if (mounted) setState(() {});
+        // Clear clipboard to prevent autofilling stale codes on re-open
+        await Clipboard.setData(const ClipboardData(text: ''));
+      }
+    } catch (_) {
+      // Clipboard access can be restricted on some platforms — ignore silently
+    }
   }
 
   @override
@@ -57,6 +114,7 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     for (final c in _controllers) {
       c.dispose();
     }
@@ -83,6 +141,7 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes> {
         final nextIdx = digits.length.clamp(0, _length - 1);
         _focusNodes[nextIdx].requestFocus();
       }
+      setState(() {});
       return;
     }
 
@@ -106,68 +165,74 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(_length, (index) {
-        final hasDigit = _controllers[index].text.isNotEmpty;
-        final isFocused = _focusNodes[index].hasFocus;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: index == 0 || index == 5 ? 2 : 4),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              height: 54,
-              decoration: BoxDecoration(
-                color: hasDigit
-                    ? AppColors.primaryContainer
-                    : Colors.white.withValues(alpha: 0.95),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isFocused
-                      ? AppColors.primary
-                      : (hasDigit
-                          ? AppColors.primary.withValues(alpha: 0.45)
-                          : AppColors.border),
-                  width: isFocused ? 1.8 : 1.2,
+    return AutofillGroup(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(_length, (index) {
+          final hasDigit = _controllers[index].text.isNotEmpty;
+          final isFocused = _focusNodes[index].hasFocus;
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: index == 0 || index == 5 ? 2 : 4),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                height: 54,
+                decoration: BoxDecoration(
+                  color: hasDigit
+                      ? AppColors.primaryContainer
+                      : Colors.white.withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isFocused
+                        ? AppColors.primary
+                        : (hasDigit
+                            ? AppColors.primary.withValues(alpha: 0.45)
+                            : AppColors.border),
+                    width: isFocused ? 1.8 : 1.2,
+                  ),
+                  boxShadow: isFocused
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.14),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
                 ),
-                boxShadow: isFocused
-                    ? [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.14),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Center(
-                child: TextField(
-                  controller: _controllers[index],
-                  focusNode: _focusNodes[index],
-                  enabled: widget.enabled,
-                  textAlign: TextAlign.center,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                child: Center(
+                  child: TextField(
+                    controller: _controllers[index],
+                    focusNode: _focusNodes[index],
+                    enabled: widget.enabled,
+                    textAlign: TextAlign.center,
+                    keyboardType: TextInputType.number,
+                    // OS-level autofill hints: Android SMS chip + iOS QuickType bar
+                    autofillHints: const [AutofillHints.oneTimeCode],
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      counterText: '',
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onTap: () => setState(() {}),
+                    onChanged: (val) => _handleDigitChange(index, val),
                   ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    counterText: '',
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                  onTap: () => setState(() {}),
-                  onChanged: (val) => _handleDigitChange(index, val),
                 ),
               ),
             ),
-          ),
-        );
-      }),
+          );
+        }),
+      ),
     );
   }
 }
