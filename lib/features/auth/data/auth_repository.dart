@@ -105,6 +105,10 @@ class AuthRepository {
     return user;
   }
 
+  void cancelGoogleSignIn() {
+    _googleOAuth.cancelPendingSignIn();
+  }
+
   Future<String?> requestOtp({
     required String email,
     required OtpPurpose purpose,

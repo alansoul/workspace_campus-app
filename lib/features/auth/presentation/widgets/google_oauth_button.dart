@@ -1,22 +1,66 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 
-/// Minimal pill-shaped Google OAuth CTA button with vector 'G' emblem.
+/// Minimal pill-shaped Google OAuth CTA button with instant inline cancel option.
 class GoogleOAuthButton extends StatelessWidget {
   final VoidCallback? onPressed;
+  final VoidCallback? onCancel;
   final bool isLoading;
   final String label;
 
   const GoogleOAuthButton({
     super.key,
     required this.onPressed,
+    this.onCancel,
     this.isLoading = false,
     this.label = 'Continue with Google',
   });
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onPressed != null && !isLoading;
+    if (isLoading) {
+      return OutlinedButton(
+        onPressed: onCancel,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white.withValues(alpha: 0.94),
+          foregroundColor: AppColors.textPrimary,
+          side: const BorderSide(color: AppColors.border, width: 1.2),
+          padding: const EdgeInsets.symmetric(vertical: 13.5, horizontal: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: 17,
+              width: 17,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            ),
+            SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                'Waiting for browser • Cancel',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final enabled = onPressed != null;
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 180),
       opacity: enabled ? 1.0 : 0.6,
@@ -31,39 +75,30 @@ class GoogleOAuthButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
           ),
         ),
-        child: isLoading
-            ? const SizedBox(
-                height: 19,
-                width: 19,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.primary,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CustomPaint(painter: _GoogleLogoPainter()),
+            ),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
                 ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CustomPaint(painter: _GoogleLogoPainter()),
-                  ),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                ],
               ),
+            ),
+          ],
+        ),
       ),
     );
   }

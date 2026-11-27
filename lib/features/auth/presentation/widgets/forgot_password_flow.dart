@@ -178,7 +178,10 @@ class _ForgotPasswordFlowState extends ConsumerState<ForgotPasswordFlow> {
         OtpCodeBoxes(
           value: _otpCode,
           enabled: !isLoading,
-          onChanged: (code) => setState(() => _otpCode = code),
+          onChanged: (code) {
+            ref.read(authFlowControllerProvider.notifier).clearBanners();
+            setState(() => _otpCode = code);
+          },
         ),
         const SizedBox(height: 8),
         OtpResendBar(
@@ -193,7 +196,10 @@ class _ForgotPasswordFlowState extends ConsumerState<ForgotPasswordFlow> {
           prefixIcon: Icons.lock_outline_rounded,
           obscureText: _obscureNew,
           enabled: !isLoading,
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) {
+            ref.read(authFlowControllerProvider.notifier).clearBanners();
+            setState(() {});
+          },
           suffixIcon: IconButton(
             icon: Icon(
               _obscureNew
@@ -214,7 +220,10 @@ class _ForgotPasswordFlowState extends ConsumerState<ForgotPasswordFlow> {
           obscureText: _obscureConfirm,
           textInputAction: TextInputAction.done,
           enabled: !isLoading,
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) {
+            ref.read(authFlowControllerProvider.notifier).clearBanners();
+            setState(() {});
+          },
           onSubmitted: (_) => _submitReset(),
           suffixIcon: IconButton(
             icon: Icon(

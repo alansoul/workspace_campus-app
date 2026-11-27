@@ -21,6 +21,9 @@ class FakeAuthRepository implements AuthRepository {
   Future<UserModel> loginWithGoogle() => throw UnimplementedError();
 
   @override
+  void cancelGoogleSignIn() {}
+
+  @override
   Future<void> logout() async {}
 
   @override

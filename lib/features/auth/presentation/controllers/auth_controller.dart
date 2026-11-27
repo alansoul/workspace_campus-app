@@ -3,6 +3,7 @@ import '../../data/auth_repository.dart';
 import '../../data/models/auth_models.dart';
 import '../../data/models/user_model.dart';
 import '../../data/services/auth_api_service.dart';
+import '../../data/services/google_oauth_service.dart';
 
 /// Global authenticated session provider watched by the app shell.
 final authControllerProvider =
@@ -312,10 +313,16 @@ class AuthFlowController extends StateNotifier<AuthFlowState> {
     );
     try {
       final user = await _repo.loginWithGoogle();
+      if (!mounted) return false;
       state = state.copyWith(isGoogleLoading: false);
       _sessionController.setAuthenticatedUser(user);
       return true;
+    } on GoogleOAuthCancelledException {
+      if (!mounted) return false;
+      state = state.copyWith(isGoogleLoading: false);
+      return false;
     } catch (e) {
+      if (!mounted) return false;
       state = state.copyWith(
         isGoogleLoading: false,
         errorMessage: AuthApiService.extractErrorMessage(
@@ -324,6 +331,13 @@ class AuthFlowController extends StateNotifier<AuthFlowState> {
         ),
       );
       return false;
+    }
+  }
+
+  void cancelGoogleSignIn() {
+    _repo.cancelGoogleSignIn();
+    if (state.isGoogleLoading) {
+      state = state.copyWith(isGoogleLoading: false);
     }
   }
 
