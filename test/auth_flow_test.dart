@@ -355,19 +355,24 @@ void main() {
   });
 
   testWidgets(
-      'OtpCodeBoxes auto-fills 6-digit OTP from Android notification listener channel',
+      'OtpCodeBoxes auto-fills 6-digit OTP when returning to the app on resume',
       (WidgetTester tester) async {
-    const channel = MethodChannel('northstar/otp_autofill');
+    String? clipboardText;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (call) async {
-      if (call.method == 'getLatestOtp') {
-        return '591204';
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.getData') {
+        return <String, dynamic>{'text': clipboardText};
+      }
+      if (call.method == 'Clipboard.setData') {
+        final args = call.arguments as Map<dynamic, dynamic>?;
+        clipboardText = args?['text'] as String?;
+        return null;
       }
       return null;
     });
     addTearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, null);
+          .setMockMethodCallHandler(SystemChannels.platform, null);
     });
 
     var currentOtp = '';
@@ -384,10 +389,17 @@ void main() {
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 450));
+    expect(currentOtp, isEmpty);
+
+    // User switches to Gmail, copies OTP, and resumes Northstar Workspace
+    clipboardText = '591204';
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
 
     expect(currentOtp, '591204');
     expect(completedCount, 1);
+    expect(clipboardText, isEmpty);
   });
 }
 

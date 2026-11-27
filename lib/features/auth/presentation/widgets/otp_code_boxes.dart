@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../data/services/android_otp_listener_service.dart';
 
 /// Custom 6-digit fluid OTP verification boxes supporting paste, auto-advance,
 /// OS-level SMS/email autofill (Android & iOS), and clipboard polling fallback.
@@ -29,7 +28,6 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes>
   static const int _length = 6;
   late final List<TextEditingController> _controllers;
   late final List<FocusNode> _focusNodes;
-  StreamSubscription<String>? _androidOtpSub;
   Timer? _clipboardDelayTimer;
 
   @override
@@ -39,13 +37,6 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes>
     _controllers = List.generate(_length, (_) => TextEditingController());
     _focusNodes = List.generate(_length, (_) => FocusNode());
     _syncFromExternalValue(widget.value);
-
-    // Subscribe to live Android email/SMS notification OTP events
-    _androidOtpSub = AndroidOtpListenerService.otpStream().listen(
-      _applyExternalOtp,
-      onError: (_) {},
-    );
-    _checkAndroidNotificationOtp();
 
     // Clipboard polling: check on mount (delayed) and when first box is focused
     _clipboardDelayTimer = Timer(const Duration(milliseconds: 400), () {
@@ -59,8 +50,7 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // User returned from mail/SMS app — check notification listener & clipboard
-      _checkAndroidNotificationOtp();
+      // User returned from mail/SMS app — check clipboard for copied OTP
       _checkClipboardForOtp();
     }
   }
@@ -73,13 +63,6 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes>
     _focusNodes.last.unfocus();
     widget.onCompleted?.call();
     setState(() {});
-  }
-
-  Future<void> _checkAndroidNotificationOtp() async {
-    final otp = await AndroidOtpListenerService.consumeLatestOtp();
-    if (otp != null) {
-      _applyExternalOtp(otp);
-    }
   }
 
   /// Extracts a 6-digit OTP when the clipboard holds a pure 6-digit code
@@ -137,7 +120,6 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes>
   @override
   void dispose() {
     _clipboardDelayTimer?.cancel();
-    _androidOtpSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     for (final c in _controllers) {
       c.dispose();
