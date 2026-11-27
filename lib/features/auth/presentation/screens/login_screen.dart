@@ -388,6 +388,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final isSignUp = flow.mode == AuthMode.signUp;
     final hasInvalidDomain =
         flow.domainResolution != null && !flow.domainResolution!.allowed;
+    final hasBlockedDomain =
+        hasInvalidDomain && !flow.domainResolution!.isNetworkError;
     final showBanner = _emailController.text.trim().contains('@') &&
         (flow.isResolvingDomain || flow.domainResolution != null);
 
@@ -442,7 +444,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           trailingIcon: Icons.arrow_forward_rounded,
           isLoading: flow.isLoading,
           useDarkPill: isSignUp,
-          onPressed: (hasInvalidDomain || flow.isGoogleLoading)
+          onPressed: (hasBlockedDomain || flow.isGoogleLoading)
               ? null
               : _submitEmailEntry,
         ),

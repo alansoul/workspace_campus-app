@@ -165,4 +165,39 @@ void main() {
 
     expect(find.byType(UniversityOnboardingSheet), findsOneWidget);
   });
+
+  testWidgets(
+      'Shows connection issue and keeps Continue enabled when domain lookup fails',
+      (WidgetTester tester) async {
+    final failingRepo = _NetworkFailingAuthRepository();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(failingRepo),
+        ],
+        child: const MaterialApp(home: LoginScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, 'admin@iiitnr.edu.in');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not reach server'), findsOneWidget);
+    expect(find.text('Domain not registered yet'), findsNothing);
+
+    final continueBtn = tester.widget<ElevatedButton>(
+      find.widgetWithText(ElevatedButton, 'Continue'),
+    );
+    expect(continueBtn.onPressed, isNotNull);
+  });
+}
+
+class _NetworkFailingAuthRepository extends FakeAuthRepository {
+  @override
+  Future<DomainResolution> resolveDomain(String email) {
+    throw Exception('Unable to reach server. Check your internet connection.');
+  }
 }

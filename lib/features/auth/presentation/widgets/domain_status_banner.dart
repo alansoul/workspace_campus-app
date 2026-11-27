@@ -100,9 +100,11 @@ class DomainStatusBanner extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Domain not registered yet',
-                    style: TextStyle(
+                  Text(
+                    res.isNetworkError
+                        ? 'Could not reach server'
+                        : 'Domain not registered yet',
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF92400E),
