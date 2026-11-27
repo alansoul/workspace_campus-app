@@ -353,6 +353,42 @@ void main() {
     expect(completedCount, 1);
     expect(clipboardText, isEmpty);
   });
+
+  testWidgets(
+      'OtpCodeBoxes auto-fills 6-digit OTP from Android notification listener channel',
+      (WidgetTester tester) async {
+    const channel = MethodChannel('northstar/otp_autofill');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'getLatestOtp') {
+        return '591204';
+      }
+      return null;
+    });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    var currentOtp = '';
+    var completedCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OtpCodeBoxes(
+            value: currentOtp,
+            onChanged: (val) => currentOtp = val,
+            onCompleted: () => completedCount += 1,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(currentOtp, '591204');
+    expect(completedCount, 1);
+  });
 }
 
 class _NetworkFailingAuthRepository extends FakeAuthRepository {

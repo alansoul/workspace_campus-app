@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../data/services/android_otp_listener_service.dart';
 
 /// Custom 6-digit fluid OTP verification boxes supporting paste, auto-advance,
 /// OS-level SMS/email autofill (Android & iOS), and clipboard polling fallback.
@@ -28,6 +29,8 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes>
   static const int _length = 6;
   late final List<TextEditingController> _controllers;
   late final List<FocusNode> _focusNodes;
+  StreamSubscription<String>? _androidOtpSub;
+  Timer? _clipboardDelayTimer;
 
   @override
   void initState() {
@@ -37,8 +40,15 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes>
     _focusNodes = List.generate(_length, (_) => FocusNode());
     _syncFromExternalValue(widget.value);
 
+    // Subscribe to live Android email/SMS notification OTP events
+    _androidOtpSub = AndroidOtpListenerService.otpStream().listen(
+      _applyExternalOtp,
+      onError: (_) {},
+    );
+    _checkAndroidNotificationOtp();
+
     // Clipboard polling: check on mount (delayed) and when first box is focused
-    Future.delayed(const Duration(milliseconds: 400), () {
+    _clipboardDelayTimer = Timer(const Duration(milliseconds: 400), () {
       if (mounted) _checkClipboardForOtp();
     });
     _focusNodes[0].addListener(() {
@@ -49,8 +59,26 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // User returned from mail/SMS app — check clipboard for copied OTP
+      // User returned from mail/SMS app — check notification listener & clipboard
+      _checkAndroidNotificationOtp();
       _checkClipboardForOtp();
+    }
+  }
+
+  void _applyExternalOtp(String code) {
+    if (!mounted || !widget.enabled) return;
+    if (!RegExp(r'^\d{6}$').hasMatch(code) || code == _combinedCode()) return;
+    _syncFromExternalValue(code);
+    widget.onChanged(code);
+    _focusNodes.last.unfocus();
+    widget.onCompleted?.call();
+    setState(() {});
+  }
+
+  Future<void> _checkAndroidNotificationOtp() async {
+    final otp = await AndroidOtpListenerService.consumeLatestOtp();
+    if (otp != null) {
+      _applyExternalOtp(otp);
     }
   }
 
@@ -77,13 +105,7 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes>
       final data = await Clipboard.getData(Clipboard.kTextPlain);
       final extracted = _extractOtpFromText(data?.text ?? '');
       if (extracted != null && extracted != _combinedCode()) {
-        _syncFromExternalValue(extracted);
-        widget.onChanged(extracted);
-        if (extracted.length == _length) {
-          _focusNodes.last.unfocus();
-          widget.onCompleted?.call();
-        }
-        if (mounted) setState(() {});
+        _applyExternalOtp(extracted);
         // Clear clipboard to prevent autofilling stale codes on re-open
         await Clipboard.setData(const ClipboardData(text: ''));
       }
@@ -114,6 +136,8 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes>
 
   @override
   void dispose() {
+    _clipboardDelayTimer?.cancel();
+    _androidOtpSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     for (final c in _controllers) {
       c.dispose();
