@@ -20,10 +20,10 @@ concurrency:
 
 jobs:
   # ==========================================
-  # JOB 1: Build Android .APK (Fast Linux VM)
+  # JOB 1: Build Android .APK & Play .AAB (Fast Linux VM)
   # ==========================================
   build-android:
-    name: Build Android APK
+    name: Build Android APK & AAB
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -42,10 +42,37 @@ jobs:
       - name: 🛠️ Setup Flutter Workspace
         uses: ./.github/actions/setup-flutter
 
-      - name: 📱 Build Release APK
+      - name: 🔐 Configure Release Keystore (if secrets are set)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
+            echo "$KEYSTORE_BASE64" | tr -d '\n' | base64 --decode > android/app/upload-keystore.jks
+            printf "storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=upload-keystore.jks\n" \
+              "$KEYSTORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" > android/key.properties
+            echo "Release keystore configured."
+          else
+            echo "::warning::Signing secrets missing (KEYSTORE_BASE64/PASSWORD/ALIAS). Falling back to debug signing."
+          fi
+
+      - name: 📱 Build Signed & Obfuscated Release APK
         run: |
           flutter build apk --release \
+            --obfuscate --split-debug-info=build/app/outputs/symbols \
             --dart-define=API_URL=${{ inputs.api_url || 'https://workspace-campus-api.onrender.com/api' }}
+
+      - name: 📦 Build Signed & Obfuscated Play App Bundle (.aab)
+        run: |
+          flutter build appbundle --release \
+            --obfuscate --split-debug-info=build/app/outputs/symbols \
+            --dart-define=API_URL=${{ inputs.api_url || 'https://workspace-campus-api.onrender.com/api' }}
+
+      - name: 🧹 Clean Up Keystore Files
+        if: always()
+        run: rm -f android/app/upload-keystore.jks android/key.properties
 
       - name: 📤 Upload Android APK for Download
         uses: actions/upload-artifact@v4
@@ -53,6 +80,20 @@ jobs:
           name: Northstar-Android-APK
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 7
+
+      - name: 📤 Upload Play Store App Bundle (.aab)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Northstar-Android-AAB
+          path: build/app/outputs/bundle/release/app-release.aab
+          retention-days: 7
+
+      - name: 📤 Upload Android Debug Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: Northstar-Android-Symbols
+          path: build/app/outputs/symbols/
+          retention-days: 30
 
   # ==========================================
   # JOB 2: Build Windows .EXE (Fast Windows VM)
@@ -74,6 +115,7 @@ jobs:
         shell: pwsh
         run: |
           flutter build windows --release `
+            --obfuscate --split-debug-info=build/windows/symbols `
             --dart-define=API_URL=${{ inputs.api_url || 'https://workspace-campus-api.onrender.com/api' }}
 
       - name: 🗜️ Zip Windows Release Folder (keeps .exe + required .dll files together)

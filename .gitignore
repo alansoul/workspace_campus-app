@@ -47,7 +47,10 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
-# Local machine SDK paths & export dumps
+# Local machine SDK paths, signing secrets & export dumps
 android/local.properties
+android/key.properties
+*.jks
+*.keystore
 flutter_export.js
 campus_mobile_export.txt
