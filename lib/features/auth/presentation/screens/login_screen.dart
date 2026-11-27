@@ -163,74 +163,95 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   Widget build(BuildContext context) {
     final flow = ref.watch(authFlowControllerProvider);
-    final screenHeight = MediaQuery.sizeOf(context).height;
-    final cardHeight = math.min(510.0, math.max(360.0, screenHeight - 170.0));
+    final size = MediaQuery.sizeOf(context);
+    final isDesktop = size.width >= 900;
+    final cardHeight = math.min(510.0, math.max(360.0, size.height - 170.0));
+
+    final authColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: cardHeight,
+          child: FrostedGlassCard(
+            padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(flow),
+                const SizedBox(height: 14),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    child: SingleChildScrollView(
+                      key: ValueKey('scroll_${flow.step.name}'),
+                      physics: const ClampingScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (flow.errorMessage != null) ...[
+                            AuthFeedbackBanner(
+                              message: flow.errorMessage!,
+                              isError: true,
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          if (flow.infoMessage != null) ...[
+                            AuthFeedbackBanner(
+                              message: flow.infoMessage!,
+                              isError: false,
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          _buildPageContent(flow),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        _UniversityOnboardingCard(
+          onTap: () => UniversityOnboardingSheet.show(context),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'By continuing, you agree to Northstar Terms & Privacy Policy.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 11.5,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
 
     return Scaffold(
       backgroundColor: AppColors.auroraLavender,
       body: FluidAuthBackdrop(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(
-              height: cardHeight,
-              child: FrostedGlassCard(
-                padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildHeader(flow),
-                    const SizedBox(height: 14),
-                    Expanded(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        child: SingleChildScrollView(
-                          key: ValueKey('scroll_${flow.step.name}'),
-                          physics: const ClampingScrollPhysics(),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (flow.errorMessage != null) ...[
-                                AuthFeedbackBanner(
-                                  message: flow.errorMessage!,
-                                  isError: true,
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-                              if (flow.infoMessage != null) ...[
-                                AuthFeedbackBanner(
-                                  message: flow.infoMessage!,
-                                  isError: false,
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-                              _buildPageContent(flow),
-                            ],
-                          ),
-                        ),
+        maxWidth: isDesktop ? 1020 : 440,
+        child: isDesktop
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 40),
+                      child: _DesktopShowcasePanel(
+                        onCreateOrg: () =>
+                            UniversityOnboardingSheet.show(context),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            _UniversityOnboardingCard(
-              onTap: () => UniversityOnboardingSheet.show(context),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'By continuing, you agree to Northstar Terms & Privacy Policy.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11.5,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
+                  ),
+                  SizedBox(width: 440, child: authColumn),
+                ],
+              )
+            : authColumn,
       ),
     );
   }
@@ -753,7 +774,7 @@ class _UniversityOnboardingCard extends StatelessWidget {
     return FrostedGlassCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       borderRadius: 22,
-      tintColor: Colors.white.withValues(alpha: 0.72),
+      tintColor: Colors.white.withValues(alpha: 0.94),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
@@ -830,6 +851,161 @@ class _UniversityOnboardingCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Left-side desktop showcase panel providing visual balance and quick onboarding context.
+class _DesktopShowcasePanel extends StatelessWidget {
+  final VoidCallback onCreateOrg;
+
+  const _DesktopShowcasePanel({required this.onCreateOrg});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: const Color(0xFFDCE5F9)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.auto_awesome_rounded,
+                  size: 14, color: AppColors.primary),
+              SizedBox(width: 6),
+              Text(
+                'Desktop & Mobile Campus Suite',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        const Text(
+          'Your entire campus workspace, unified.',
+          style: TextStyle(
+            fontSize: 34,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.9,
+            height: 1.12,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Sign in with your verified institutional email or Google account—or provision an isolated workspace for your university in three steps.',
+          style: TextStyle(
+            fontSize: 14.5,
+            height: 1.5,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 24),
+        const _FeatureHighlightRow(
+          icon: Icons.school_rounded,
+          title: 'Smart Academics & AI Copilot',
+          subtitle: 'Timetables, attendance tracking, notes, and Gmail sync.',
+        ),
+        const SizedBox(height: 12),
+        const _FeatureHighlightRow(
+          icon: Icons.forum_rounded,
+          title: 'Real-Time Channels & Calls',
+          subtitle: 'Campus channels, direct chats, and LiveKit voice/video.',
+        ),
+        const SizedBox(height: 12),
+        const _FeatureHighlightRow(
+          icon: Icons.verified_user_rounded,
+          title: 'Multi-Tenant Campus Isolation',
+          subtitle: 'Official domain verification keeps every college separate.',
+        ),
+        const SizedBox(height: 22),
+        OutlinedButton.icon(
+          onPressed: onCreateOrg,
+          icon: const Icon(Icons.account_balance_rounded, size: 17),
+          label: const Text('Onboard your university'),
+          style: OutlinedButton.styleFrom(
+            backgroundColor: Colors.white.withValues(alpha: 0.92),
+            foregroundColor: AppColors.textPrimary,
+            side: const BorderSide(color: Color(0xFFCBD5E1)),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FeatureHighlightRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _FeatureHighlightRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, size: 19, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

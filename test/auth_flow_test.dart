@@ -87,11 +87,35 @@ void main() {
     expect(strong.isStrong, isTrue);
   });
 
-  test('UniversityClaimRequest derives short codes and strips domain URLs', () {
+  test('UniversityClaimRequest derives short codes and validates domains/emails', () {
     expect(UniversityClaimRequest.deriveShortCode('Stanford University'), 'STAN');
+    expect(UniversityClaimRequest.deriveShortCode('A'), 'CAMP');
     expect(
       UniversityClaimRequest.cleanDomain('https://www.IITD.ac.in/'),
       'iitd.ac.in',
+    );
+    expect(UniversityClaimRequest.isBlockedConsumerDomain('gmail.com'), isTrue);
+    expect(UniversityClaimRequest.isBlockedConsumerDomain('proton.me'), isTrue);
+    expect(UniversityClaimRequest.isBlockedConsumerDomain('iitd.ac.in'), isFalse);
+    expect(
+      UniversityClaimRequest.isDomainRelated('iitd.ac.in', 'notiitd.ac.in'),
+      isFalse,
+    );
+    expect(
+      UniversityClaimRequest.isDomainRelated('cs.iitd.ac.in', 'iitd.ac.in'),
+      isTrue,
+    );
+    expect(
+      UniversityClaimRequest.isStudentEmail('21bcs042@iiitnr.edu.in'),
+      isTrue,
+    );
+    expect(
+      UniversityClaimRequest.isStudentEmail('rohan@student.iitd.ac.in'),
+      isTrue,
+    );
+    expect(
+      UniversityClaimRequest.isStudentEmail('registrar@iitd.ac.in'),
+      isFalse,
     );
   });
 
@@ -192,6 +216,88 @@ void main() {
       find.widgetWithText(ElevatedButton, 'Continue'),
     );
     expect(continueBtn.onPressed, isNotNull);
+  });
+
+  testWidgets(
+      'Renders desktop showcase + dialog onboarding and enforces student-email gate',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final fakeRepo = _InteractiveFakeAuthRepository();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authRepositoryProvider.overrideWithValue(fakeRepo),
+        ],
+        child: const MaterialApp(home: LoginScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Your entire campus workspace, unified.'), findsOneWidget);
+
+    await tester.tap(find.text('Onboard your university'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.text('Create University Organisation'), findsOneWidget);
+
+    // Fill org details -> Step 0 -> Step 1
+    await tester.enterText(
+      find.widgetWithText(TextField, 'e.g. Indian Institute of Technology Delhi'),
+      'IIIT Naya Raipur',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'iitd.ac.in'),
+      'newcampus.edu.in',
+    );
+    await tester.pump();
+
+    await tester.ensureVisible(find.text('Continue to Admin Setup'));
+    await tester.tap(find.text('Continue to Admin Setup'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Administrator Credentials'), findsOneWidget);
+
+    // Enter student roll-number email -> blocked upfront before API call
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Rohan'),
+      'Divya',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'admin@newcampus.edu.in'),
+      '21bcs042@newcampus.edu.in',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'At least 8 characters'),
+      'AdminPass1!',
+    );
+    await tester.ensureVisible(find.text('Send Verification Code'));
+    await tester.tap(find.text('Send Verification Code'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Student or roll-number emails cannot claim'),
+      findsOneWidget,
+    );
+
+    // Fix to staff email -> advances to Step 2
+    await tester.enterText(
+      find.widgetWithText(TextField, '21bcs042@newcampus.edu.in'),
+      'registrar@newcampus.edu.in',
+    );
+    await tester.ensureVisible(find.text('Send Verification Code'));
+    await tester.tap(find.text('Send Verification Code'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Verify Institutional Domain'), findsOneWidget);
+    expect(find.text('Verify & Create Organisation'), findsOneWidget);
   });
 }
 
