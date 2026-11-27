@@ -5,8 +5,13 @@ import '../../../../core/constants/app_colors.dart';
 /// Soft pastel aurora backdrop + frosted glass container inspired by modern fluid mobile UIs.
 class FluidAuthBackdrop extends StatefulWidget {
   final Widget child;
+  final double maxWidth;
 
-  const FluidAuthBackdrop({super.key, required this.child});
+  const FluidAuthBackdrop({
+    super.key,
+    required this.child,
+    this.maxWidth = 440,
+  });
 
   @override
   State<FluidAuthBackdrop> createState() => _FluidAuthBackdropState();
@@ -91,9 +96,9 @@ class _FluidAuthBackdropState extends State<FluidAuthBackdrop>
           child: Center(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
+                constraints: BoxConstraints(maxWidth: widget.maxWidth),
                 child: widget.child,
               ),
             ),
@@ -157,15 +162,15 @@ class FrostedGlassCard extends StatelessWidget {
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: tintColor ?? Colors.white.withValues(alpha: 0.84),
+            color: tintColor ?? Colors.white.withValues(alpha: 0.93),
             borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.92),
-              width: 1.4,
+              color: const Color(0xFFE2E8F0).withValues(alpha: 0.95),
+              width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF4766BE).withValues(alpha: 0.10),
+                color: const Color(0xFF4766BE).withValues(alpha: 0.12),
                 blurRadius: 36,
                 offset: const Offset(0, 16),
               ),

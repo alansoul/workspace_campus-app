@@ -98,9 +98,20 @@ class UniversityClaimRequest {
     required this.password,
   });
 
+  static const Set<String> blockedConsumerDomains = {
+    'gmail.com',
+    'yahoo.com',
+    'outlook.com',
+    'hotmail.com',
+    'icloud.com',
+    'proton.me',
+    'protonmail.com',
+    'aol.com',
+  };
+
   static String deriveShortCode(String name) {
     final letters = name.replaceAll(RegExp(r'[^a-zA-Z]'), '').toUpperCase();
-    if (letters.isEmpty) return 'CAMP';
+    if (letters.length < 2) return 'CAMP';
     return letters.length >= 4 ? letters.substring(0, 4) : letters;
   }
 
@@ -111,6 +122,38 @@ class UniversityClaimRequest {
         .replaceFirst(RegExp(r'^https?://', caseSensitive: false), '')
         .replaceFirst(RegExp(r'^www\.', caseSensitive: false), '')
         .replaceAll(RegExp(r'/+$'), '');
+  }
+
+  static bool isBlockedConsumerDomain(String domain) {
+    return blockedConsumerDomains.contains(cleanDomain(domain));
+  }
+
+  static bool isDomainRelated(String domain, String emailDomain) {
+    final d = cleanDomain(domain);
+    final ed = cleanDomain(emailDomain);
+    if (d.isEmpty || ed.isEmpty) return false;
+    return d == ed || d.endsWith('.$ed');
+  }
+
+  /// Mirrors `isStudentEmail` in campus-api (`university.service.ts`).
+  static bool isStudentEmail(String email) {
+    final parts = email.trim().toLowerCase().split('@');
+    if (parts.length != 2) return false;
+    final localPart = parts[0];
+    final domainPart = parts[1];
+    if (localPart.isEmpty || domainPart.isEmpty) return false;
+
+    if (domainPart.startsWith('student.') ||
+        domainPart.contains('.std.') ||
+        domainPart.contains('.student.')) {
+      return true;
+    }
+
+    return RegExp(r'^[a-z]{0,4}\d{4,8}[a-z0-9]*$', caseSensitive: false)
+            .hasMatch(localPart) ||
+        RegExp(r'^\d{2,4}[a-z]{2,5}\d{2,5}$', caseSensitive: false)
+            .hasMatch(localPart) ||
+        RegExp(r'\d{5,}').hasMatch(localPart);
   }
 
   Map<String, dynamic> toJson() => {

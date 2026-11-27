@@ -220,37 +220,43 @@ class _OtpResendBarState extends State<OtpResendBar> {
   @override
   Widget build(BuildContext context) {
     final canResend = _secondsLeft == 0 && !widget.isLoading;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text(
-          "Didn't receive the code?",
-          style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
-        ),
-        TextButton(
-          onPressed: canResend
-              ? () async {
-                  await widget.onResend();
-                  if (mounted) _startCooldown();
-                }
-              : null,
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return SizedBox(
+      width: double.infinity,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 4,
+        children: [
+          const Text(
+            "Didn't receive the code?",
+            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
           ),
-          child: Text(
-            _secondsLeft > 0
-                ? 'Request again in ${_secondsLeft}s'
-                : 'Request again',
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              color: canResend ? AppColors.primary : AppColors.textSecondary,
+          TextButton(
+            onPressed: canResend
+                ? () async {
+                    await widget.onResend();
+                    if (mounted) _startCooldown();
+                  }
+                : null,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              _secondsLeft > 0
+                  ? 'Request again in ${_secondsLeft}s'
+                  : 'Request again',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: canResend ? AppColors.primary : AppColors.textSecondary,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

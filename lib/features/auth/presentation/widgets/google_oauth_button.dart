@@ -22,9 +22,9 @@ class GoogleOAuthButton extends StatelessWidget {
       return OutlinedButton(
         onPressed: onCancel,
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white.withValues(alpha: 0.94),
+          backgroundColor: Colors.white,
           foregroundColor: AppColors.textPrimary,
-          side: const BorderSide(color: AppColors.border, width: 1.2),
+          side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
           padding: const EdgeInsets.symmetric(vertical: 13.5, horizontal: 18),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(999),
@@ -67,9 +67,9 @@ class GoogleOAuthButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: enabled ? onPressed : null,
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white.withValues(alpha: 0.94),
+          backgroundColor: Colors.white,
           foregroundColor: AppColors.textPrimary,
-          side: const BorderSide(color: AppColors.border, width: 1.2),
+          side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
           padding: const EdgeInsets.symmetric(vertical: 13.5, horizontal: 18),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(999),
