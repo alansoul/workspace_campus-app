@@ -165,61 +165,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final flow = ref.watch(authFlowControllerProvider);
     final size = MediaQuery.sizeOf(context);
     final isDesktop = size.width >= 900;
-    final cardHeight = math.min(510.0, math.max(360.0, size.height - 170.0));
+    final cardHeight = math.min(
+      548.0,
+      math.max(360.0, size.height - (isDesktop ? 170.0 : 210.0)),
+    );
 
-    final authColumn = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final bottomFooter = Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          height: cardHeight,
-          child: FrostedGlassCard(
-            padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildHeader(flow),
-                const SizedBox(height: 14),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    child: SingleChildScrollView(
-                      key: ValueKey('scroll_${flow.step.name}'),
-                      physics: const ClampingScrollPhysics(),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (flow.errorMessage != null) ...[
-                            AuthFeedbackBanner(
-                              message: flow.errorMessage!,
-                              isError: true,
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                          if (flow.infoMessage != null) ...[
-                            AuthFeedbackBanner(
-                              message: flow.infoMessage!,
-                              isError: false,
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                          _buildPageContent(flow),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
         _UniversityOnboardingCard(
           onTap: () => UniversityOnboardingSheet.show(context),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         const Text(
           'By continuing, you agree to Northstar Terms & Privacy Policy.',
           textAlign: TextAlign.center,
@@ -231,10 +189,68 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       ],
     );
 
+    final authCard = SizedBox(
+      height: cardHeight,
+      child: FrostedGlassCard(
+        padding: const EdgeInsets.fromLTRB(22, 20, 22, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildHeader(flow),
+            const SizedBox(height: 12),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                child: SingleChildScrollView(
+                  key: ValueKey('scroll_${flow.step.name}'),
+                  physics: const ClampingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (flow.errorMessage != null) ...[
+                        AuthFeedbackBanner(
+                          message: flow.errorMessage!,
+                          isError: true,
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      if (flow.infoMessage != null) ...[
+                        AuthFeedbackBanner(
+                          message: flow.infoMessage!,
+                          isError: false,
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      _buildPageContent(flow),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final authColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        authCard,
+        if (isDesktop) ...[
+          const SizedBox(height: 14),
+          bottomFooter,
+        ],
+      ],
+    );
+
     return Scaffold(
       backgroundColor: AppColors.auroraLavender,
       body: FluidAuthBackdrop(
         maxWidth: isDesktop ? 1020 : 440,
+        bottomFooter: isDesktop ? null : bottomFooter,
         child: isDesktop
             ? Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -428,7 +444,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             _onEmailChanged(_emailController.text);
           },
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         if (isSignUp) ...[
           FluidTextField(
             controller: _nameController,
@@ -438,7 +454,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             enabled: !flow.isLoading && !flow.isGoogleLoading,
             onChanged: (_) => notifier.clearBanners(),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
         ],
         FluidTextField(
           controller: _emailController,
@@ -453,13 +469,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           onSubmitted: (_) => _submitEmailEntry(),
         ),
         if (showBanner) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           DomainStatusBanner(
             resolution: flow.domainResolution,
             isResolving: flow.isResolvingDomain,
           ),
         ],
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         FluidPrimaryButton(
           label: 'Continue',
           trailingIcon: Icons.arrow_forward_rounded,
@@ -469,7 +485,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ? null
               : _submitEmailEntry,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         const Row(
           children: [
             Expanded(child: Divider(color: AppColors.border)),
@@ -488,7 +504,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             Expanded(child: Divider(color: AppColors.border)),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         GoogleOAuthButton(
           isLoading: flow.isGoogleLoading,
           onPressed: flow.isLoading ? null : notifier.signInWithGoogle,
@@ -772,8 +788,8 @@ class _UniversityOnboardingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FrostedGlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      borderRadius: 22,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      borderRadius: 20,
       tintColor: Colors.white.withValues(alpha: 0.94),
       child: InkWell(
         onTap: onTap,
@@ -781,37 +797,41 @@ class _UniversityOnboardingCard extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 38,
-              height: 38,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: AppColors.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(11),
                 border: Border.all(color: const Color(0xFFBFDBFE)),
               ),
               child: const Icon(
                 Icons.account_balance_rounded,
                 color: AppColors.primary,
-                size: 19,
+                size: 18,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Onboarding a university?',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  SizedBox(height: 1),
                   Text(
                     'Create an organisation for your campus',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 11,
                       color: AppColors.textSecondary,
                     ),
                   ),

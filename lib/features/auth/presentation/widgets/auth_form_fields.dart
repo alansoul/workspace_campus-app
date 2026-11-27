@@ -40,11 +40,11 @@ class FluidTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 6),
+          padding: const EdgeInsets.only(left: 4, bottom: 4),
           child: Text(
             label,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
             ),
@@ -59,7 +59,7 @@ class FluidTextField extends StatelessWidget {
           onChanged: onChanged,
           onSubmitted: onSubmitted,
           style: const TextStyle(
-            fontSize: 14,
+            fontSize: 13.5,
             fontWeight: FontWeight.w500,
             color: AppColors.textPrimary,
           ),
@@ -67,19 +67,20 @@ class FluidTextField extends StatelessWidget {
             hintText: hint,
             hintStyle: TextStyle(
               color: AppColors.textSecondary.withValues(alpha: 0.7),
-              fontSize: 13.5,
+              fontSize: 13,
               fontWeight: FontWeight.w400,
             ),
             prefixIcon: Icon(
               prefixIcon,
-              size: 19,
+              size: 18,
               color: AppColors.textSecondary,
             ),
             suffixIcon: suffixIcon,
             filled: true,
             fillColor: Colors.white.withValues(alpha: 0.92),
+            isDense: true,
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide: BorderSide(color: borderColor, width: 1.2),
