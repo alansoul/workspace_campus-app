@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import '../constants/api_endpoints.dart';
 import '../storage/secure_storage_service.dart';
 
@@ -61,6 +63,22 @@ class AuthInterceptor extends QueuedInterceptor {
           await _storage.clearAll();
         }
       }
+    }
+    final status = err.response?.statusCode ?? 0;
+    final isTimeout = err.type == DioExceptionType.connectionTimeout ||
+        err.type == DioExceptionType.receiveTimeout;
+    if ((status >= 500 || isTimeout) && Sentry.isEnabled) {
+      unawaited(
+        Sentry.captureException(
+          err,
+          stackTrace: err.stackTrace,
+          withScope: (scope) {
+            scope.setTag('http.path', err.requestOptions.path);
+            scope.setTag('http.method', err.requestOptions.method);
+            scope.setTag('http.status_code', status.toString());
+          },
+        ),
+      );
     }
     return handler.next(err);
   }
