@@ -34,6 +34,19 @@ flutter build windows --release
 - Output: `build/windows/x64/runner/Release/campus_mobile.exe`
 - Ship the entire `Release/` folder (or package it into a ZIP / installer), because `.exe` depends on the sibling `.dll` files and `data/` directory.
 
+## Cloud Development & Live Preview (GitHub Codespaces — 0% Laptop Heat/RAM)
+
+1. **Open Codespace:** On GitHub (`alansoul/workspace_campus-app`), click **`<> Code` -> `Codespaces` -> `Create codespace on main`**.
+   - `.devcontainer/devcontainer.json` + `.devcontainer/setup.sh` install Flutter automatically and forward port `8080`.
+2. **Start Live Preview Server:**
+   ```bash
+   flutter run -d web-server --web-hostname 0.0.0.0 --web-port 8080
+   ```
+   - Press `r` in the terminal anytime for instant hot reload.
+3. **Preview on Mobile Browser (Phone) & Desktop:**
+   - **Laptop Chrome/Edge:** Click the forwarded `8080` URL popup (press `F12` -> Device Toolbar to toggle phone vs desktop width).
+   - **Phone Chrome/Safari:** Open the **Ports** tab in Codespaces, right-click port `8080` -> **Port Visibility -> Public**, and open the `https://<codespace>-8080.app.github.dev` URL on your phone (or scan it via QR / sign into GitHub on your phone browser if kept Private).
+
 ## GitHub Actions Workflows
 
 - **CI Pipeline (`.github/workflows/ci.yml`):** Runs lightweight `validate` checks (format check, `flutter analyze`, `flutter test --coverage`) on every push/PR to `main`/`develop` without burning build minutes on binaries.
