@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,10 +19,13 @@ class GoogleOAuthCancelledException implements Exception {
   String toString() => message;
 }
 
-/// Handles browser-based Google OAuth with a temporary localhost callback server
-/// and instant cancellation when the user closes or leaves the browser tab.
+/// Handles browser-based Google OAuth via `northstar://auth/callback` deep links
+/// on Android/iOS and a localhost loopback server on Desktop platforms.
 class GoogleOAuthService {
+  static const String _mobileCallbackUri = 'northstar://auth/callback';
+
   HttpServer? _activeServer;
+  StreamSubscription<Uri>? _activeLinkSubscription;
   Completer<String>? _activeCompleter;
 
   bool get isInProgress =>
@@ -32,6 +36,8 @@ class GoogleOAuthService {
     if (completer != null && !completer.isCompleted) {
       completer.completeError(const GoogleOAuthCancelledException());
     }
+    _activeLinkSubscription?.cancel();
+    _activeLinkSubscription = null;
     _activeServer?.close(force: true);
     _activeServer = null;
   }
@@ -44,6 +50,68 @@ class GoogleOAuthService {
     // Cancel any previous lingering attempt cleanly before starting a new one
     cancelPendingSignIn();
 
+    if (Platform.isAndroid || Platform.isIOS) {
+      return _authenticateViaDeepLink();
+    }
+    return _authenticateViaLoopbackServer();
+  }
+
+  Future<String> _authenticateViaDeepLink() async {
+    final appLinks = AppLinks();
+    final completer = Completer<String>();
+    _activeCompleter = completer;
+
+    final subscription = appLinks.uriLinkStream.listen((uri) {
+      if (uri.scheme != 'northstar' ||
+          uri.host != 'auth' ||
+          uri.path != '/callback') {
+        return;
+      }
+
+      final token = uri.queryParameters['token'];
+      final error = uri.queryParameters['error'];
+
+      if (!completer.isCompleted) {
+        if (token != null && token.isNotEmpty) {
+          completer.complete(token);
+        } else {
+          completer.completeError(
+            Exception(error ?? 'Google authentication was cancelled.'),
+          );
+        }
+      }
+    });
+    _activeLinkSubscription = subscription;
+
+    try {
+      final authUri = Uri.parse(
+        '${ApiEndpoints.baseUrl}${ApiEndpoints.googleOAuth}',
+      ).replace(queryParameters: {'redirect_uri': _mobileCallbackUri});
+
+      final launched = await launchUrl(
+        authUri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched) {
+        throw Exception('Could not open browser for Google sign-in.');
+      }
+
+      return await completer.future.timeout(
+        const Duration(minutes: 2),
+        onTimeout: () => throw const GoogleOAuthCancelledException(
+          'Google sign-in timed out. Please try again.',
+        ),
+      );
+    } finally {
+      await subscription.cancel();
+      if (identical(_activeLinkSubscription, subscription)) {
+        _activeLinkSubscription = null;
+      }
+      if (identical(_activeCompleter, completer)) _activeCompleter = null;
+    }
+  }
+
+  Future<String> _authenticateViaLoopbackServer() async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     _activeServer = server;
     final callbackUrl = 'http://127.0.0.1:${server.port}/callback';
@@ -92,10 +160,9 @@ class GoogleOAuthService {
 
       return await completer.future.timeout(
         const Duration(minutes: 2),
-        onTimeout: () =>
-            throw const GoogleOAuthCancelledException(
-              'Google sign-in timed out. Please try again.',
-            ),
+        onTimeout: () => throw const GoogleOAuthCancelledException(
+          'Google sign-in timed out. Please try again.',
+        ),
       );
     } finally {
       await subscription.cancel();
