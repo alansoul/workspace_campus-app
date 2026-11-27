@@ -171,79 +171,112 @@ class _OtpCodeBoxesState extends State<OtpCodeBoxes>
 
   @override
   Widget build(BuildContext context) {
-    return AutofillGroup(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: List.generate(_length, (index) {
-          final hasDigit = _controllers[index].text.isNotEmpty;
-          final isFocused = _focusNodes[index].hasFocus;
-          return Expanded(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: index == 0 || index == 5 ? 2 : 4),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                height: 54,
-                decoration: BoxDecoration(
-                  color: hasDigit
-                      ? AppColors.primaryContainer
-                      : Colors.white.withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isFocused
-                        ? AppColors.primary
-                        : (hasDigit
-                            ? AppColors.primary.withValues(alpha: 0.45)
-                            : AppColors.border),
-                    width: isFocused ? 1.8 : 1.2,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AutofillGroup(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(_length, (index) {
+              final hasDigit = _controllers[index].text.isNotEmpty;
+              final isFocused = _focusNodes[index].hasFocus;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: index == 0 || index == 5 ? 2 : 4,
                   ),
-                  boxShadow: isFocused
-                      ? [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.14),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Center(
-                  child: TextField(
-                    controller: _controllers[index],
-                    focusNode: _focusNodes[index],
-                    enabled: widget.enabled,
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    // OS-level autofill hints: Android SMS chip + iOS QuickType bar
-                    autofillHints: const [AutofillHints.oneTimeCode],
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: hasDigit
+                          ? AppColors.primaryContainer
+                          : Colors.white.withValues(alpha: 0.95),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isFocused
+                            ? AppColors.primary
+                            : (hasDigit
+                                ? AppColors.primary.withValues(alpha: 0.45)
+                                : AppColors.border),
+                        width: isFocused ? 1.8 : 1.2,
+                      ),
+                      boxShadow: isFocused
+                          ? [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.14),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ]
+                          : null,
                     ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      counterText: '',
-                      contentPadding: EdgeInsets.zero,
+                    child: Center(
+                      child: TextField(
+                        controller: _controllers[index],
+                        focusNode: _focusNodes[index],
+                        enabled: widget.enabled,
+                        textAlign: TextAlign.center,
+                        keyboardType: TextInputType.number,
+                        // OS-level autofill hints: Android SMS chip + iOS QuickType bar
+                        autofillHints: const [AutofillHints.oneTimeCode],
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          counterText: '',
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        onTap: () {
+                          setState(() {});
+                          _checkClipboardForOtp();
+                        },
+                        onChanged: (val) => _handleDigitChange(index, val),
+                      ),
                     ),
-                    onTap: () => setState(() {}),
-                    onChanged: (val) => _handleDigitChange(index, val),
                   ),
                 ),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.center,
+          child: TextButton.icon(
+            onPressed: widget.enabled ? _checkClipboardForOtp : null,
+            icon: const Icon(Icons.content_paste_rounded, size: 14),
+            label: const Text('Paste code from clipboard'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              backgroundColor: AppColors.primaryContainer.withValues(alpha: 0.65),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
               ),
             ),
-          );
-        }),
-      ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-/// Resend OTP action link with an automatic countdown timer.
+/// Resend OTP action link with a fixed, non-shifting tabular countdown timer.
 class OtpResendBar extends StatefulWidget {
   final Future<void> Function() onResend;
   final bool isLoading;
@@ -291,18 +324,21 @@ class _OtpResendBarState extends State<OtpResendBar> {
   @override
   Widget build(BuildContext context) {
     final canResend = _secondsLeft == 0 && !widget.isLoading;
+    final secondsText = _secondsLeft.toString().padLeft(2, '0');
     return SizedBox(
       width: double.infinity,
-      child: Wrap(
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 8,
-        runSpacing: 4,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            "Didn't receive the code?",
-            style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+          const Flexible(
+            child: Text(
+              "Didn't receive the code?",
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
           ),
+          const SizedBox(width: 8),
           TextButton(
             onPressed: canResend
                 ? () async {
@@ -311,17 +347,20 @@ class _OtpResendBarState extends State<OtpResendBar> {
                   }
                 : null,
             style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             child: Text(
               _secondsLeft > 0
-                  ? 'Request again in ${_secondsLeft}s'
+                  ? 'Request again in ${secondsText}s'
                   : 'Request again',
+              maxLines: 1,
+              softWrap: false,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
                 color: canResend ? AppColors.primary : AppColors.textSecondary,
               ),
             ),

@@ -131,7 +131,7 @@ class DomainStatusBanner extends StatelessWidget {
 
   static String? _buildAccountStatusText(DomainResolution res) {
     if (res.accountExists == null) return null;
-    if (res.isUniversityAdmin) {
+    if (res.isUniversity && res.isUniversityAdmin) {
       return 'University Administrator verified • Ready to sign in';
     }
     if (res.accountExists == true) {
@@ -167,7 +167,7 @@ class _BadgeBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7.5),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(14),

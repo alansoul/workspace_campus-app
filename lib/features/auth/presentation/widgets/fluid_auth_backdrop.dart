@@ -5,11 +5,13 @@ import '../../../../core/constants/app_colors.dart';
 /// Soft pastel aurora backdrop + frosted glass container inspired by modern fluid mobile UIs.
 class FluidAuthBackdrop extends StatefulWidget {
   final Widget child;
+  final Widget? bottomFooter;
   final double maxWidth;
 
   const FluidAuthBackdrop({
     super.key,
     required this.child,
+    this.bottomFooter,
     this.maxWidth = 440,
   });
 
@@ -93,15 +95,37 @@ class _FluidAuthBackdropState extends State<FluidAuthBackdrop>
           },
         ),
         SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: widget.maxWidth),
-                child: widget.child,
-              ),
-            ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: (constraints.maxHeight - 26).clamp(0.0, 4000.0),
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: widget.maxWidth),
+                      child: widget.bottomFooter == null
+                          ? widget.child
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              mainAxisSize: MainAxisSize.max,
+                              children: [
+                                const SizedBox(height: 6),
+                                widget.child,
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 18),
+                                  child: widget.bottomFooter!,
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],
