@@ -42,7 +42,7 @@ dependencies:
   app_links: ^6.4.0
 
   # State Management
-  flutter_riverpod: ^2.6.1
+  flutter_riverpod: ^3.5.0
 
   # Native Keystore / Keychain Encrypted Storage
   flutter_secure_storage: ^9.2.2
