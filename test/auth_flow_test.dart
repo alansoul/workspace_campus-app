@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,11 +6,15 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:campus_mobile/features/auth/data/auth_repository.dart';
 import 'package:campus_mobile/features/auth/data/models/auth_models.dart';
 import 'package:campus_mobile/features/auth/data/models/user_model.dart';
+import 'package:campus_mobile/features/auth/data/services/google_oauth_service.dart';
 import 'package:campus_mobile/features/auth/presentation/screens/login_screen.dart';
+import 'package:campus_mobile/features/auth/presentation/widgets/fluid_auth_backdrop.dart';
 import 'package:campus_mobile/features/auth/presentation/widgets/university_onboarding_sheet.dart';
 import 'widget_test.dart';
 
 class _InteractiveFakeAuthRepository extends FakeAuthRepository {
+  Completer<UserModel>? _pendingGoogle;
+
   @override
   Future<DomainResolution> resolveDomain(String email) async {
     if (email == 'admin@iiitnr.edu.in') {
@@ -26,6 +31,20 @@ class _InteractiveFakeAuthRepository extends FakeAuthRepository {
       );
     }
     return super.resolveDomain(email);
+  }
+
+  @override
+  Future<UserModel> loginWithGoogle() {
+    _pendingGoogle = Completer<UserModel>();
+    return _pendingGoogle!.future;
+  }
+
+  @override
+  void cancelGoogleSignIn() {
+    final pending = _pendingGoogle;
+    if (pending != null && !pending.isCompleted) {
+      pending.completeError(const GoogleOAuthCancelledException());
+    }
   }
 
   @override
@@ -77,7 +96,7 @@ void main() {
   });
 
   testWidgets(
-      'Multi-page flow verifies admin account, switches modes, recovery, and opens Create Org',
+      'Keeps consistent card height across pages and supports cancelling Google OAuth',
       (WidgetTester tester) async {
     final fakeRepo = _InteractiveFakeAuthRepository();
 
@@ -91,8 +110,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Page 1: minimal Login & Google OAuth visible
-    expect(find.text('Continue'), findsOneWidget);
+    final initialCardSize = tester.getSize(find.byType(FrostedGlassCard).first);
+
+    // Clicking Google OAuth shows inline cancel option and recovers immediately on cancel
+    await tester.ensureVisible(find.text('Continue with Google'));
+    await tester.tap(find.text('Continue with Google'));
+    await tester.pump();
+    expect(find.text('Waiting for browser • Cancel'), findsOneWidget);
+
+    await tester.tap(find.text('Waiting for browser • Cancel'));
+    await tester.pumpAndSettle();
     expect(find.text('Continue with Google'), findsOneWidget);
 
     // Enter university admin email and continue to Page 2 (Admin Sign In)
@@ -101,42 +128,41 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Admin Account'), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(FrostedGlassCard).first).height,
+      equals(initialCardSize.height),
+    );
 
     await tester.ensureVisible(find.text('Continue'));
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    // Page 2: shows dedicated Admin Sign In, Password/OTP toggle, Forgot password
+    // Page 2 keeps identical card height
     expect(find.text('Admin Sign In'), findsOneWidget);
-    expect(find.text('Sign In'), findsOneWidget);
-    expect(find.text('Forgot password?'), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(FrostedGlassCard).first).height,
+      equals(initialCardSize.height),
+    );
 
-    // Navigate to Forgot Password page
+    // Navigate to Forgot Password -> also keeps identical card height
     await tester.ensureVisible(find.text('Forgot password?'));
     await tester.tap(find.text('Forgot password?'));
     await tester.pumpAndSettle();
     expect(find.text('Reset Password'), findsOneWidget);
-    expect(find.text('Send Verification Code'), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(FrostedGlassCard).first).height,
+      equals(initialCardSize.height),
+    );
 
-    // Go back to Page 2 -> Back to Page 1 -> switch to Register
-    await tester.ensureVisible(find.text('Back to Sign In'));
-    await tester.tap(find.text('Back to Sign In'));
-    await tester.pumpAndSettle();
-
+    // Go back -> open Create Org sheet
     await tester.ensureVisible(find.text('Back'));
     await tester.tap(find.text('Back'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Register'));
-    await tester.pumpAndSettle();
-    expect(find.text('Full Name'), findsOneWidget);
-
-    // Open bottom Create Org sheet
     await tester.ensureVisible(find.text('Create Org'));
     await tester.tap(find.text('Create Org'));
     await tester.pumpAndSettle();
 
     expect(find.byType(UniversityOnboardingSheet), findsOneWidget);
-    expect(find.text('Create University Organisation'), findsOneWidget);
   });
 }

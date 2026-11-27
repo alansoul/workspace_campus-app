@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -21,7 +22,8 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with WidgetsBindingObserver {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -29,14 +31,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _confirmPasswordController = TextEditingController();
 
   Timer? _domainDebounce;
+  Timer? _googleResumeTimer;
   bool _obscurePassword = true;
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
   String _otpCode = '';
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _domainDebounce?.cancel();
+    _googleResumeTimer?.cancel();
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -45,11 +56,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final flow = ref.read(authFlowControllerProvider);
+      if (flow.isGoogleLoading) {
+        _googleResumeTimer?.cancel();
+        // Allow brief window for an in-flight localhost callback before cancelling
+        _googleResumeTimer = Timer(const Duration(milliseconds: 1800), () {
+          if (!mounted) return;
+          if (ref.read(authFlowControllerProvider).isGoogleLoading) {
+            ref.read(authFlowControllerProvider.notifier).cancelGoogleSignIn();
+          }
+        });
+      }
+    }
+  }
+
   void _onEmailChanged(String value) {
     _domainDebounce?.cancel();
+    final notifier = ref.read(authFlowControllerProvider.notifier);
+    notifier.clearBanners();
+
     final trimmed = value.trim();
     if (!trimmed.contains('@') || !trimmed.split('@').last.contains('.')) {
-      ref.read(authFlowControllerProvider.notifier).clearDomainResolution();
+      notifier.clearDomainResolution();
       return;
     }
     _domainDebounce = Timer(const Duration(milliseconds: 300), () {
@@ -132,6 +163,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final flow = ref.watch(authFlowControllerProvider);
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final cardHeight = math.min(510.0, math.max(360.0, screenHeight - 170.0));
 
     return Scaffold(
       backgroundColor: AppColors.auroraLavender,
@@ -139,35 +172,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            FrostedGlassCard(
-              padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
-              child: AnimatedSize(
-                duration: const Duration(milliseconds: 240),
-                curve: Curves.easeOutCubic,
+            SizedBox(
+              height: cardHeight,
+              child: FrostedGlassCard(
+                padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _buildHeader(flow),
-                    const SizedBox(height: 18),
-                    if (flow.errorMessage != null) ...[
-                      AuthFeedbackBanner(
-                        message: flow.errorMessage!,
-                        isError: true,
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        child: SingleChildScrollView(
+                          key: ValueKey('scroll_${flow.step.name}'),
+                          physics: const ClampingScrollPhysics(),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (flow.errorMessage != null) ...[
+                                AuthFeedbackBanner(
+                                  message: flow.errorMessage!,
+                                  isError: true,
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+                              if (flow.infoMessage != null) ...[
+                                AuthFeedbackBanner(
+                                  message: flow.infoMessage!,
+                                  isError: false,
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+                              _buildPageContent(flow),
+                            ],
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                    ],
-                    if (flow.infoMessage != null) ...[
-                      AuthFeedbackBanner(
-                        message: flow.infoMessage!,
-                        isError: false,
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 230),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      child: _buildPageContent(flow),
                     ),
                   ],
                 ),
@@ -177,7 +220,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _UniversityOnboardingCard(
               onTap: () => UniversityOnboardingSheet.show(context),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             const Text(
               'By continuing, you agree to Northstar Terms & Privacy Policy.',
               textAlign: TextAlign.center,
@@ -267,10 +310,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           )
         else
           Container(
-            width: 48,
-            height: 48,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(14),
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -290,11 +333,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
             child: const Icon(
               Icons.school_rounded,
-              size: 25,
+              size: 24,
               color: Colors.white,
             ),
           ),
-        SizedBox(height: showBack ? 6 : 12),
+        SizedBox(height: showBack ? 6 : 10),
         Text(
           title,
           textAlign: TextAlign.center,
@@ -322,35 +365,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildPageContent(AuthFlowState flow) {
     switch (flow.step) {
       case AuthStep.authMethod:
-        return KeyedSubtree(
-          key: const ValueKey('page_auth_method'),
-          child: _buildAuthMethodPage(flow),
-        );
+        return _buildAuthMethodPage(flow);
       case AuthStep.verifyOtp:
-        return KeyedSubtree(
-          key: const ValueKey('page_verify_otp'),
-          child: _buildVerifyOtpPage(flow),
-        );
+        return _buildVerifyOtpPage(flow);
       case AuthStep.setPassword:
-        return KeyedSubtree(
-          key: const ValueKey('page_set_password'),
-          child: _buildSetPasswordPage(flow),
-        );
+        return _buildSetPasswordPage(flow);
       case AuthStep.forgotPassword:
-        return KeyedSubtree(
-          key: const ValueKey('page_forgot_password'),
-          child: ForgotPasswordFlow(
-            initialEmail: _emailController.text.trim(),
-            onCancel: () => ref
-                .read(authFlowControllerProvider.notifier)
-                .goToStep(AuthStep.authMethod),
-          ),
+        return ForgotPasswordFlow(
+          initialEmail: _emailController.text.trim(),
+          onCancel: () => ref
+              .read(authFlowControllerProvider.notifier)
+              .goToStep(AuthStep.authMethod),
         );
       case AuthStep.credentials:
-        return KeyedSubtree(
-          key: const ValueKey('page_credentials'),
-          child: _buildEntryPage(flow),
-        );
+        return _buildEntryPage(flow);
     }
   }
 
@@ -377,7 +405,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _onEmailChanged(_emailController.text);
           },
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         if (isSignUp) ...[
           FluidTextField(
             controller: _nameController,
@@ -385,8 +413,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             hint: 'e.g. Rohan Singh',
             prefixIcon: Icons.person_outline_rounded,
             enabled: !flow.isLoading && !flow.isGoogleLoading,
+            onChanged: (_) => notifier.clearBanners(),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
         ],
         FluidTextField(
           controller: _emailController,
@@ -407,7 +436,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             isResolving: flow.isResolvingDomain,
           ),
         ],
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
         FluidPrimaryButton(
           label: 'Continue',
           trailingIcon: Icons.arrow_forward_rounded,
@@ -417,7 +446,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ? null
               : _submitEmailEntry,
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         const Row(
           children: [
             Expanded(child: Divider(color: AppColors.border)),
@@ -436,10 +465,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Expanded(child: Divider(color: AppColors.border)),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         GoogleOAuthButton(
           isLoading: flow.isGoogleLoading,
           onPressed: flow.isLoading ? null : notifier.signInWithGoogle,
+          onCancel: notifier.cancelGoogleSignIn,
         ),
       ],
     );
@@ -453,7 +483,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Identity chip showing exact email & verified account/university role
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
@@ -505,7 +534,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             isResolving: false,
           ),
         ],
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         SegmentedPillSwitch<AuthMethod>(
           value: flow.method,
           leftValue: AuthMethod.password,
@@ -518,7 +547,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           activeColor: AppColors.accentIndigo,
           onChanged: notifier.switchMethod,
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         if (flow.method == AuthMethod.password) ...[
           FluidTextField(
             controller: _passwordController,
@@ -528,6 +557,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             obscureText: _obscurePassword,
             textInputAction: TextInputAction.done,
             enabled: !flow.isLoading,
+            onChanged: (_) => notifier.clearBanners(),
             onSubmitted: (_) => _submitAuthMethod(),
             suffixIcon: IconButton(
               icon: Icon(
@@ -548,7 +578,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ? null
                   : () => notifier.goToStep(AuthStep.forgotPassword),
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
               ),
               child: const Text(
                 'Forgot password?',
@@ -577,7 +607,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
         ],
         FluidPrimaryButton(
           label: flow.method == AuthMethod.otp ? 'Send OTP Code' : 'Sign In',
@@ -601,13 +631,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        const SizedBox(height: 12),
         OtpCodeBoxes(
           value: _otpCode,
           enabled: !flow.isLoading,
-          onChanged: (code) => setState(() => _otpCode = code),
+          onChanged: (code) {
+            notifier.clearBanners();
+            setState(() => _otpCode = code);
+          },
           onCompleted: _submitOtpVerification,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         OtpResendBar(
           isLoading: flow.isLoading,
           onResend: () async {
@@ -618,7 +652,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             );
           },
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 20),
         FluidPrimaryButton(
           label: 'Confirm Code',
           trailingIcon: Icons.verified_rounded,
@@ -631,6 +665,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   /// PAGE 4: Password creation after first-time OTP signup verification.
   Widget _buildSetPasswordPage(AuthFlowState flow) {
+    final notifier = ref.read(authFlowControllerProvider.notifier);
     final pass = _newPasswordController.text;
     final confirm = _confirmPasswordController.text;
 
@@ -644,7 +679,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           prefixIcon: Icons.lock_outline_rounded,
           obscureText: _obscureNewPassword,
           enabled: !flow.isLoading,
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) {
+            notifier.clearBanners();
+            setState(() {});
+          },
           suffixIcon: IconButton(
             icon: Icon(
               _obscureNewPassword
@@ -657,7 +695,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 setState(() => _obscureNewPassword = !_obscureNewPassword),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         FluidTextField(
           controller: _confirmPasswordController,
           label: 'Confirm Password',
@@ -666,7 +704,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           obscureText: _obscureConfirmPassword,
           textInputAction: TextInputAction.done,
           enabled: !flow.isLoading,
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) {
+            notifier.clearBanners();
+            setState(() {});
+          },
           onSubmitted: (_) => _submitSetPassword(),
           suffixIcon: IconButton(
             icon: Icon(
@@ -681,12 +722,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         PasswordStrengthChecklist(
           password: pass,
           confirmPassword: confirm,
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 14),
         FluidPrimaryButton(
           label: 'Create Password & Enter Workspace',
           useDarkPill: true,

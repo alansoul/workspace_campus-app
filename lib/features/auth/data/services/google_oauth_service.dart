@@ -9,19 +9,48 @@ final googleOAuthServiceProvider = Provider<GoogleOAuthService>((ref) {
   return GoogleOAuthService();
 });
 
+class GoogleOAuthCancelledException implements Exception {
+  final String message;
+  const GoogleOAuthCancelledException([
+    this.message = 'Google sign-in was cancelled.',
+  ]);
+  @override
+  String toString() => message;
+}
+
 /// Handles browser-based Google OAuth with a temporary localhost callback server
-/// so Windows desktop and mobile apps receive the issued JWT seamlessly.
+/// and instant cancellation when the user closes or leaves the browser tab.
 class GoogleOAuthService {
+  HttpServer? _activeServer;
+  Completer<String>? _activeCompleter;
+
+  bool get isInProgress =>
+      _activeCompleter != null && !_activeCompleter!.isCompleted;
+
+  void cancelPendingSignIn() {
+    final completer = _activeCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.completeError(const GoogleOAuthCancelledException());
+    }
+    _activeServer?.close(force: true);
+    _activeServer = null;
+  }
+
   Future<String> authenticateWithGoogle() async {
     if (kIsWeb) {
       throw Exception('Use web OAuth flow inside browser environments.');
     }
 
+    // Cancel any previous lingering attempt cleanly before starting a new one
+    cancelPendingSignIn();
+
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    _activeServer = server;
     final callbackUrl = 'http://127.0.0.1:${server.port}/callback';
     final completer = Completer<String>();
-    late final StreamSubscription<HttpRequest> subscription;
+    _activeCompleter = completer;
 
+    late final StreamSubscription<HttpRequest> subscription;
     subscription = server.listen((request) async {
       if (request.uri.path != '/callback') {
         request.response.statusCode = HttpStatus.notFound;
@@ -62,13 +91,17 @@ class GoogleOAuthService {
       }
 
       return await completer.future.timeout(
-        const Duration(minutes: 3),
+        const Duration(minutes: 2),
         onTimeout: () =>
-            throw Exception('Google sign-in timed out. Please try again.'),
+            throw const GoogleOAuthCancelledException(
+              'Google sign-in timed out. Please try again.',
+            ),
       );
     } finally {
       await subscription.cancel();
       await server.close(force: true);
+      if (identical(_activeServer, server)) _activeServer = null;
+      if (identical(_activeCompleter, completer)) _activeCompleter = null;
     }
   }
 
