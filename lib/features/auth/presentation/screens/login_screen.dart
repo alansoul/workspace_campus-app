@@ -347,7 +347,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
           )
         else
-          const NorthstarLogo(size: 54),
+          const NorthstarLogo(size: 72, mode: NorthstarLogoMode.signature),
         SizedBox(height: showBack ? 6 : 10),
         Text(
           title,
@@ -865,7 +865,7 @@ class _DesktopShowcasePanel extends StatelessWidget {
         const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            NorthstarLogo(size: 46),
+            NorthstarLogo(size: 52, mode: NorthstarLogoMode.signature),
             SizedBox(width: 12),
             Text(
               'Northstar Workspace',
