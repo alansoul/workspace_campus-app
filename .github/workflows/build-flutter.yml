@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: 🛒 Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: ☕ Setup Java 17 (Android Gradle)
         uses: actions/setup-java@v4
@@ -108,7 +108,7 @@ jobs:
 
     steps:
       - name: 🛒 Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: 🛠️ Setup Flutter Workspace
         uses: ./.github/actions/setup-flutter
