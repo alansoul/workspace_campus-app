@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:campus_mobile/core/constants/app_colors.dart';
 import 'package:campus_mobile/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:campus_mobile/shared/widgets/northstar_logo.dart';
 import '../widgets/capsule_card.dart';
 import '../widgets/edge_switcher_overlay.dart';
 import 'module_screens.dart';
@@ -108,18 +109,7 @@ class DashboardShell extends ConsumerWidget {
         appBar: AppBar(
           title: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.school_rounded,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-              ),
+              const NorthstarLogo(size: 36),
               const SizedBox(width: 12),
               const Text(
                 'Northstar Campus',
