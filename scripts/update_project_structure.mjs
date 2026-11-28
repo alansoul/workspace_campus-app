@@ -492,7 +492,9 @@ function writeDocs({ silent = false } = {}) {
     const markdown = renderMarkdown(prefix);
     const absTarget = path.join(ROOT, rel);
     fs.mkdirSync(path.dirname(absTarget), { recursive: true });
-    const prev = fs.existsSync(absTarget) ? fs.readFileSync(absTarget, 'utf8') : '';
+    const prev = fs.existsSync(absTarget)
+      ? fs.readFileSync(absTarget, 'utf8').replace(/\r\n/g, '\n')
+      : '';
     if (prev !== markdown) {
       fs.writeFileSync(absTarget, markdown, 'utf8');
       updated++;
@@ -510,7 +512,9 @@ function checkDocs() {
   for (const { rel, prefix } of TARGET_SPECS) {
     const markdown = renderMarkdown(prefix);
     const absTarget = path.join(ROOT, rel);
-    const prev = fs.existsSync(absTarget) ? fs.readFileSync(absTarget, 'utf8') : '';
+    const prev = fs.existsSync(absTarget)
+      ? fs.readFileSync(absTarget, 'utf8').replace(/\r\n/g, '\n')
+      : '';
     if (prev !== markdown) {
       console.error(`Out of date: ${rel}`);
       stale = true;
