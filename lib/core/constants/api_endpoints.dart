@@ -7,6 +7,17 @@ class ApiEndpoints {
   );
   static String get socketUrl => baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
 
+  /// Ensures remote endpoints use TLS (cleartext HTTP allowed only for local dev loopback).
+  static bool isSecureEndpoint(String rawUrl) {
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) return false;
+    if (uri.scheme == 'https') return true;
+    return uri.scheme == 'http' &&
+        (uri.host == 'localhost' ||
+            uri.host == '127.0.0.1' ||
+            uri.host == '10.0.2.2');
+  }
+
   // IAM & Auth
   static const String login = '/auth/login';
   static const String me = '/auth/me';
