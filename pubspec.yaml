@@ -49,7 +49,7 @@ dependencies:
 
   # Real-Time & Media
   socket_io_client: ^3.0.2
-  livekit_client: ^2.3.0
+  livekit_client: ^2.14.0
 
   # UI & Media
   google_fonts: ^6.2.1
