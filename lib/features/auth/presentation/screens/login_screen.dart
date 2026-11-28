@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../shared/widgets/northstar_logo.dart';
 import '../../data/models/auth_models.dart';
 import '../controllers/auth_controller.dart';
 import '../widgets/auth_form_fields.dart';
@@ -346,34 +347,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
           )
         else
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF38BDF8),
-                  AppColors.primary,
-                  AppColors.accentIndigo,
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.24),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.school_rounded,
-              size: 24,
-              color: Colors.white,
-            ),
-          ),
+          const NorthstarLogo(size: 54),
         SizedBox(height: showBack ? 6 : 10),
         Text(
           title,
