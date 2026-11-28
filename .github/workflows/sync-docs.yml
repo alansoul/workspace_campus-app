@@ -1,0 +1,54 @@
+name: Sync Project Structure Docs
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'assets/**'
+      - 'test/**'
+      - 'scripts/**'
+      - 'android/app/src/**'
+      - 'windows/runner/**'
+      - 'web/**'
+      - 'pubspec.yaml'
+      - 'analysis_options.yaml'
+      - 'README.md'
+
+concurrency:
+  group: sync-docs-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync-structure:
+    name: Update docs/project-structure.md & FILE_MAP.md
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Regenerate project structure documentation
+        run: node scripts/update_project_structure.mjs
+
+      - name: Commit updated structure docs if changed
+        run: |
+          if [ -n "$(git status --porcelain docs/project-structure.md FILE_MAP.md)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/project-structure.md FILE_MAP.md
+            git commit -m "docs: auto-update campus_mobile project structure"
+            git push
+          else
+            echo "Project structure docs are already up to date."
+          fi
