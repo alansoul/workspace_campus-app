@@ -62,13 +62,15 @@ jobs:
         run: |
           flutter build apk --release \
             --obfuscate --split-debug-info=build/app/outputs/symbols \
-            --dart-define=API_URL=${{ inputs.api_url || 'https://workspace-campus-api.onrender.com/api' }}
+            --dart-define=API_URL=${{ inputs.api_url || 'https://workspace-campus-api.onrender.com/api' }} \
+            --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }}
 
       - name: 📦 Build Signed & Obfuscated Play App Bundle (.aab)
         run: |
           flutter build appbundle --release \
             --obfuscate --split-debug-info=build/app/outputs/symbols \
-            --dart-define=API_URL=${{ inputs.api_url || 'https://workspace-campus-api.onrender.com/api' }}
+            --dart-define=API_URL=${{ inputs.api_url || 'https://workspace-campus-api.onrender.com/api' }} \
+            --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }}
 
       - name: 🧹 Clean Up Keystore Files
         if: always()
@@ -116,7 +118,8 @@ jobs:
         run: |
           flutter build windows --release `
             --obfuscate --split-debug-info=build/windows/symbols `
-            --dart-define=API_URL=${{ inputs.api_url || 'https://workspace-campus-api.onrender.com/api' }}
+            --dart-define=API_URL=${{ inputs.api_url || 'https://workspace-campus-api.onrender.com/api' }} `
+            --dart-define=SENTRY_DSN=${{ secrets.SENTRY_DSN }}
 
       - name: 🗜️ Zip Windows Release Folder (keeps .exe + required .dll files together)
         shell: pwsh
