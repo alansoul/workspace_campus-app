@@ -57,7 +57,7 @@ class CampusWorkspaceApp extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                NorthstarLogo(size: 84),
+                NorthstarLogo(size: 92, mode: NorthstarLogoMode.loader),
                 SizedBox(height: 18),
                 Text(
                   'Northstar Workspace',

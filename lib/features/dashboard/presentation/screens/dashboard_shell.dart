@@ -109,7 +109,7 @@ class DashboardShell extends ConsumerWidget {
         appBar: AppBar(
           title: Row(
             children: [
-              const NorthstarLogo(size: 36),
+              const NorthstarLogo(size: 38, mode: NorthstarLogoMode.idle),
               const SizedBox(width: 12),
               const Text(
                 'Northstar Campus',
