@@ -6,6 +6,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:campus_mobile/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:campus_mobile/features/auth/presentation/screens/login_screen.dart';
 import 'package:campus_mobile/features/dashboard/presentation/screens/dashboard_shell.dart';
+import 'package:campus_mobile/shared/widgets/northstar_logo.dart';
 
 const String _sentryDsn = String.fromEnvironment('SENTRY_DSN');
 
@@ -51,7 +52,31 @@ class CampusWorkspaceApp extends ConsumerWidget {
           return const DashboardShell();
         },
         loading: () => const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+          backgroundColor: Color(0xFFF6F9FF),
+          body: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                NorthstarLogo(size: 84),
+                SizedBox(height: 18),
+                Text(
+                  'Northstar Workspace',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                SizedBox(height: 14),
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                ),
+              ],
+            ),
+          ),
         ),
         error: (error, stack) => const LoginScreen(),
       ),

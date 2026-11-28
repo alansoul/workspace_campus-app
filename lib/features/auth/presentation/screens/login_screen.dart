@@ -862,6 +862,23 @@ class _DesktopShowcasePanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            NorthstarLogo(size: 46),
+            SizedBox(width: 12),
+            Text(
+              'Northstar Workspace',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.4,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
